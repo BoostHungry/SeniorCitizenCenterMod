@@ -40,7 +40,7 @@ namespace SeniorCitizenCenterMod {
             building.m_buildingAI = to;
             to.m_info = building;
 
-            // Replace the class
+            // Set the class as a medical building
             building.m_class = medicalBuilding.m_class;
 
             // Set the placement style as manual
@@ -60,7 +60,6 @@ namespace SeniorCitizenCenterMod {
                 try {
                     fieldInfo.SetValue(to, fieldInfo.GetValue(@from));
                 } catch (ArgumentException e) {
-                    Logger.logError("Argument Exception coping {0} from {1} to {2} -- Attempting to copy from fallback", fieldInfo.Name, from, to);
                     fieldInfo.SetValue(to, fieldInfo.GetValue(@fallback));
                 }
             }
