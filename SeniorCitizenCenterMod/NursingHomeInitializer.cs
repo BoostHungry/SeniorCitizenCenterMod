@@ -14,6 +14,8 @@ namespace SeniorCitizenCenterMod {
         private const int LOADED_LEVEL_GAME = 6;
         private const int LOADED_LEVEL_ASSET_EDITOR = 19;
 
+        private const String MEDICAL_CLINIC_NAME = "Medical Clinic";
+
         private static readonly Queue<IEnumerator> ACTION_QUEUE = new Queue<IEnumerator>();
         private static readonly object QUEUE_LOCK = new object();
 
@@ -59,11 +61,18 @@ namespace SeniorCitizenCenterMod {
                 return;
             }
 
+            // Wait for the Medical Clinic to load since all new Nursing Homes will copy its values
+            if (PrefabCollection<BuildingInfo>.FindLoaded(MEDICAL_CLINIC_NAME) == null) {
+                this.attemptingInitialization = 0;
+                return;
+            }
+
+            // Start loading
             Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization Attempting Initialization");
             Singleton<LoadingManager>.instance.QueueLoadingAction(ActionWrapper(() => {
                 try {
                     if (this.loadedLevel == LOADED_LEVEL_GAME || this.loadedLevel == LOADED_LEVEL_ASSET_EDITOR) {
-                        this.StartCoroutine(this.initNursingHomes());
+                        this.StartCoroutine(this.initNursingHomes(PrefabCollection<BuildingInfo>.FindLoaded(MEDICAL_CLINIC_NAME)));
                         AddQueuedActionsToLoadingQueue();
                     }
                 } catch (Exception e) {
@@ -76,13 +85,13 @@ namespace SeniorCitizenCenterMod {
             this.attemptingInitialization = 0;
         }
 
-        private IEnumerator initNursingHomes() {
+        private IEnumerator initNursingHomes(BuildingInfo buildingToCopyFrom) {
             uint index = 0U;
             while (!Singleton<LoadingManager>.instance.m_loadingComplete) {
                 for (; (long) PrefabCollection<BuildingInfo>.LoadedCount() > (long) index; ++index) {
                     BuildingInfo buildingInfo = PrefabCollection<BuildingInfo>.GetLoaded(index);
                     if (buildingInfo != null && buildingInfo.name.EndsWith("_Data") && buildingInfo.name.Contains("NH123")) {
-                        this.aiReplacementHelper.replaceBuildingAi<NursingHomeAi>(buildingInfo);
+                        this.aiReplacementHelper.replaceBuildingAi<NursingHomeAi>(buildingInfo, buildingToCopyFrom);
                     }
                 }
                 yield return new WaitForEndOfFrame();

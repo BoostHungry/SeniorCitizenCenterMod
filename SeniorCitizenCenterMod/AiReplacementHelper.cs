@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace SeniorCitizenCenterMod {
@@ -11,7 +12,7 @@ namespace SeniorCitizenCenterMod {
             this.replacedAIs = new Dictionary<string, BuildingAI>();
         }
 
-        public bool replaceBuildingAi<T>(BuildingInfo building) where T : BuildingAI {
+        public bool replaceBuildingAi<T>(BuildingInfo building, BuildingInfo medicalBuilding) where T : BuildingAI {
             Logger.logInfo(LOG_AI_REPLACEMENT, "AiReplacementHelper.replaceBuildingAi -- Checking Building: {0}", building);
             if (building == null) {
                 Logger.logInfo(LOG_AI_REPLACEMENT, "AiReplacementHelper.replaceBuildingAi -- Null Building");
@@ -31,25 +32,37 @@ namespace SeniorCitizenCenterMod {
 
 
             // Replace the AI
-            BuildingAI component = building.GetComponent<BuildingAI>();
+            BuildingAI originalAi = building.GetComponent<BuildingAI>();
+            BuildingAI medicalAi = medicalBuilding.GetComponent<BuildingAI>();
             T to = building.gameObject.AddComponent<T>();
-            this.copyBuildingAIAttributes(component, to);
-            this.replacedAIs[building.name] = component;
+            this.copyBuildingAIAttributes(originalAi, to, medicalAi);
+            this.replacedAIs[building.name] = originalAi;
             building.m_buildingAI = to;
             to.m_info = building;
+
+            // Replace the class
+            building.m_class = medicalBuilding.m_class;
+
+            // Set the placement style as manual
+            building.m_placementStyle =  ItemClass.Placement.Manual;
 
             Logger.logInfo(LOG_AI_REPLACEMENT, "AiReplacementHelper.replaceBuildingAi -- Successfully replaced {0}'s AI", building.name);
             return true;
         }
 
-        private void copyBuildingAIAttributes<T>(BuildingAI from, T to) {
+        private void copyBuildingAIAttributes<T>(BuildingAI from, T to, BuildingAI fallback) {
             FieldInfo[] fieldInfos = typeof(T).BaseType?.GetFields();
             if (fieldInfos == null) {
                 return;
             }
 
             foreach (FieldInfo fieldInfo in fieldInfos) {
-                fieldInfo.SetValue(to, fieldInfo.GetValue(@from));
+                try {
+                    fieldInfo.SetValue(to, fieldInfo.GetValue(@from));
+                } catch (ArgumentException e) {
+                    Logger.logError("Argument Exception coping {0} from {1} to {2} -- Attempting to copy from fallback", fieldInfo.Name, from, to);
+                    fieldInfo.SetValue(to, fieldInfo.GetValue(@fallback));
+                }
             }
         }
     }
