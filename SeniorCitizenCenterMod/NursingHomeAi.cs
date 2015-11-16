@@ -68,9 +68,6 @@ namespace SeniorCitizenCenterMod {
                     switch (infoModeCopy - 17) {
                         case InfoManager.InfoMode.None:
                             if (this.ShowConsumption(buildingId, ref data)) {
-                                float originalValue = (float) (0.200000002980232 + (double) this.m_info.m_class.m_level * 0.200000002980232);
-                                float newValue = (float) (0.200000002980232 + (double) Math.Max(0, this.quality - 1) * 0.200000002980232);
-                                Logger.logInfo("Info Mode: Original: {0} -- New: {1}", originalValue, newValue);
                                 return Color.Lerp(Singleton<InfoManager>.instance.m_properties.m_neutralColor, Color.Lerp(Singleton<ZoneManager>.instance.m_properties.m_zoneColors[2], Singleton<ZoneManager>.instance.m_properties.m_zoneColors[3], 0.5f) * 0.5f, (float) (0.200000002980232 + (double) Math.Max(0, this.quality - 1) * 0.200000002980232));
                             }
                             return Singleton<InfoManager>.instance.m_properties.m_neutralColor;
@@ -111,8 +108,6 @@ namespace SeniorCitizenCenterMod {
                     if (this.m_garbageAccumulation == 0)
                         return Singleton<InfoManager>.instance.m_properties.m_neutralColor;
                     return base.GetColor(buildingId, ref data, infoMode);
-                case InfoManager.InfoMode.BuildingLevel:
-                    
                 default:
                     return base.GetColor(buildingId, ref data, infoMode);
             }
