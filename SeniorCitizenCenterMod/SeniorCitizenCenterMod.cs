@@ -39,7 +39,8 @@ namespace SeniorCitizenCenterMod {
 
         public override void OnLevelUnloading() {
             base.OnLevelUnloading();
-            this.nursingHomeInitializer?.GetComponent<NursingHomeInitializer>().OnLevelUnloading();
+            NursingHomeInitializer nursingHomeInitializer = this.nursingHomeInitializer?.GetComponent<NursingHomeInitializer>();
+            nursingHomeInitializer?.OnLevelUnloading();
         }
 
         public override void OnReleased() {

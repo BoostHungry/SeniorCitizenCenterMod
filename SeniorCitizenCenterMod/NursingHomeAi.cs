@@ -1,24 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using ColossalFramework;
 using ColossalFramework.DataBinding;
 using ColossalFramework.Math;
+using ColossalFramework.UI;
 using UnityEngine;
 
 namespace SeniorCitizenCenterMod {
     public class NursingHomeAi : PlayerBuildingAI {
-        private const bool LOG_CHANCES = false;
         private const bool LOG_PRODUCTION = false;
         private const bool LOG_SIMULATION = false;
         private const bool LOG_RANGE = false;
         private const bool LOG_BUILDING = false;
-
-        private const float BASE_CHANCE_VALUE = 50f;
-        private const float AGE_MAX_CHANCE_VALUE = 100f;
-        private const float DISTANCE_MAX_CHANCE_VALUE = 100f;
-        private const float FAMILY_STATUS_MAX_CHANCE_VALUE = 100f;
-        private const float MAX_CHANCE_VALUE = AGE_MAX_CHANCE_VALUE + DISTANCE_MAX_CHANCE_VALUE + FAMILY_STATUS_MAX_CHANCE_VALUE;
-        private const float SENIOR_AGE_RANGE = Citizen.AGE_LIMIT_SENIOR - Citizen.AGE_LIMIT_ADULT;
 
         private static readonly float[] QUALITY_VALUES = { 50, 25, 10, 40, 70, 125 };
 
@@ -72,8 +67,12 @@ namespace SeniorCitizenCenterMod {
                 default:
                     switch (infoModeCopy - 17) {
                         case InfoManager.InfoMode.None:
-                            if (this.ShowConsumption(buildingId, ref data))
-                                return Color.Lerp(Singleton<InfoManager>.instance.m_properties.m_neutralColor, Color.Lerp(Singleton<ZoneManager>.instance.m_properties.m_zoneColors[2], Singleton<ZoneManager>.instance.m_properties.m_zoneColors[3], 0.5f) * 0.5f, (float) (0.200000002980232 + (double) this.m_info.m_class.m_level * 0.200000002980232));
+                            if (this.ShowConsumption(buildingId, ref data)) {
+                                float originalValue = (float) (0.200000002980232 + (double) this.m_info.m_class.m_level * 0.200000002980232);
+                                float newValue = (float) (0.200000002980232 + (double) Math.Max(0, this.quality - 1) * 0.200000002980232);
+                                Logger.logInfo("Info Mode: Original: {0} -- New: {1}", originalValue, newValue);
+                                return Color.Lerp(Singleton<InfoManager>.instance.m_properties.m_neutralColor, Color.Lerp(Singleton<ZoneManager>.instance.m_properties.m_zoneColors[2], Singleton<ZoneManager>.instance.m_properties.m_zoneColors[3], 0.5f) * 0.5f, (float) (0.200000002980232 + (double) Math.Max(0, this.quality - 1) * 0.200000002980232));
+                            }
                             return Singleton<InfoManager>.instance.m_properties.m_neutralColor;
                         case InfoManager.InfoMode.Water:
                             if (!this.ShowConsumption(buildingId, ref data) || (int) data.m_citizenCount == 0)
@@ -112,6 +111,8 @@ namespace SeniorCitizenCenterMod {
                     if (this.m_garbageAccumulation == 0)
                         return Singleton<InfoManager>.instance.m_properties.m_neutralColor;
                     return base.GetColor(buildingId, ref data, infoMode);
+                case InfoManager.InfoMode.BuildingLevel:
+                    
                 default:
                     return base.GetColor(buildingId, ref data, infoMode);
             }
@@ -148,7 +149,8 @@ namespace SeniorCitizenCenterMod {
             Logger.logInfo(LOG_PRODUCTION, "NursingHomeAi.ProduceGoods -- Family: {0}", string.Join(", ", Array.ConvertAll(familyWithSeniors, item => item.ToString())));
 
             // Check move in chance
-            bool shouldMoveIn = this.checkIfShouldMoveIn(familyWithSeniors, ref buildingData);
+            NumWorkers numWorkers = this.getNumWorkers(ref behaviour);
+            bool shouldMoveIn = MoveInProbabilityHelper.checkIfShouldMoveIn(familyWithSeniors, ref buildingData, ref this.randomizer, this.operationRadius, this.quality, ref numWorkers);
 
             // Process the seniors and move them in if able to, mark the seniors as done processing regardless
             CitizenManager citizenManager = Singleton<CitizenManager>.instance;
@@ -180,131 +182,17 @@ namespace SeniorCitizenCenterMod {
             return 0;
         }
 
-        private bool checkIfShouldMoveIn(uint[] familyWithSeniors, ref Building buildingData) {
-            float chanceValue = NursingHomeAi.BASE_CHANCE_VALUE;
-
-            // Age 
-            chanceValue += this.getAgeChanceValue(familyWithSeniors);
-
-            // Distance
-            chanceValue += this.getDistanceChanceValue(familyWithSeniors, ref buildingData);
-
-            // Family Status
-            chanceValue += this.getFamilyStatusChanceValue(familyWithSeniors);
-
-            // Check for no chance
-            if (chanceValue <= 0) {
-                Logger.logInfo(LOG_CHANCES, "NursingHomeAi.checkIfShouldMoveIn -- No Chance: {0}", chanceValue);
-                return false;
-            }
-
-            // Check against random value
-            uint maxChance = (uint) NursingHomeAi.MAX_CHANCE_VALUE;
-            int randomValue = this.randomizer.Int32(maxChance);
-            Logger.logInfo(LOG_CHANCES, "NursingHomeAi.checkIfShouldMoveIn -- randomValue: {0} -- chanceValue: {1} -- result: {2}", randomValue, chanceValue, randomValue <= chanceValue);
-            return randomValue <= chanceValue;
-        }
-
-        private float getAgeChanceValue(uint[] familyWithSeniors) {
-            float averageSeniorsAge = this.getAverageAgeOfSeniors(familyWithSeniors);
-            float chanceValue = ((averageSeniorsAge - (Citizen.AGE_LIMIT_ADULT - 15)) / NursingHomeAi.SENIOR_AGE_RANGE) * NursingHomeAi.AGE_MAX_CHANCE_VALUE;
-            Logger.logInfo(LOG_CHANCES, "NursingHomeAi.getAgeChanceValue -- Age: {0} -- Age Chance Value: {1}", averageSeniorsAge, chanceValue);
-            return Math.Min(chanceValue, NursingHomeAi.AGE_MAX_CHANCE_VALUE);
-        }
-
-        private float getAverageAgeOfSeniors(uint[] familyWithSeniors) {
-            SeniorCitizenManager seniorCitizenManager = SeniorCitizenManager.getInstance();
-            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
-            int numSeniors = 0;
-            int combinedAge = 0;
-            foreach (uint familyMember in familyWithSeniors) {
-                if (seniorCitizenManager.isSenior(familyMember)) {
-                    numSeniors++;
-                    combinedAge += citizenManager.m_citizens.m_buffer[familyMember].Age;
-                }
-            }
-
-            if (numSeniors == 0) {
-                return 0f;
-            }
-
-            return combinedAge / (float) numSeniors;
-        }
-
-        private float getDistanceChanceValue(uint[] familyWithSeniors, ref Building buildingData) {
-            // Get the home for the family
-            ushort homeBuilding = this.getHomeBuildingIdForFamily(familyWithSeniors);
-            if (homeBuilding == 0) {
-                // homeBuilding should never be 0, but if it is return -MAX_CHANCE_VALUE to prevent this family from being chosen 
-                Logger.logError(LOG_CHANCES, "NursingHomeAi.getDistanceChanceValue -- Home Building was 0 when it shouldn't have been");
-                return -MAX_CHANCE_VALUE;
-            }
-
-            // Get the distance between the senior's home and this Nursing Home
-            float distance = Vector3.Distance(buildingData.m_position, Singleton<BuildingManager>.instance.m_buildings.m_buffer[homeBuilding].m_position);
-            Logger.logInfo(LOG_CHANCES, "NursingHomeAi.getDistanceChanceValue -- Distance: {0}", distance);
-
-            // Calulate the chance modifier based on distance
-            float distanceChanceValue = ((this.operationRadius - distance) / this.operationRadius) * NursingHomeAi.DISTANCE_MAX_CHANCE_VALUE;
-            Logger.logInfo(LOG_CHANCES, "NursingHomeAi.getDistanceChanceValue -- Distance Chance Value: {0}", distanceChanceValue);
-
-            // Max negative value is -100
-            return Mathf.Max(-100f, distanceChanceValue);
-        }
-
-        private ushort getHomeBuildingIdForFamily(uint[] familyWithSeniors) {
-            foreach (uint familyMember in familyWithSeniors) {
-                if (familyMember != 0) {
-                    return Singleton<CitizenManager>.instance.m_citizens.m_buffer[familyMember].m_homeBuilding;
-                }
-            }
-
-            return 0;
-        }
-
-        private float getFamilyStatusChanceValue(uint[] familyWithSeniors) {
-            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
-
-            // Determin the family status
-            bool hasAdults = false;
-            bool hasChildren = false;
-            int numSeniors = 0;
-            foreach (uint familyMember in familyWithSeniors) {
-                if (familyMember == 0) {
-                    continue;
-                }
-
-                int age = citizenManager.m_citizens.m_buffer[familyMember].Age;
-                if (age < Citizen.AGE_LIMIT_TEEN) {
-                    hasChildren = true;
-                } else if (age < Citizen.AGE_LIMIT_ADULT) {
-                    hasAdults = true;
-                } else {
-                    numSeniors++;
-                }
-            }
-
-            // Caluclate the chances
-            float chance = FAMILY_STATUS_MAX_CHANCE_VALUE;
-
-            // Make sure not to leave children alone
-            if (hasChildren && !hasAdults) {
-                Logger.logInfo(LOG_CHANCES, "NursingHomeAi.getFamilyStatusChanceValue -- Not leaving children alone");
-                return -MAX_CHANCE_VALUE;
-            }
-
-            // If adults live in the house, 75% less chance for this factor
-            if (hasAdults) {
-                chance -= FAMILY_STATUS_MAX_CHANCE_VALUE * 0.75f;
-            }
-
-            // If more than one senior, 25% less chance for this factor
-            if (numSeniors > 1) {
-                chance -= FAMILY_STATUS_MAX_CHANCE_VALUE * 0.25f;
-            }
-
-            Logger.logInfo(LOG_CHANCES, "NursingHomeAi.getFamilyStatusChanceValue -- Chance Value: {0} -- hasAdults: {1} -- hasChildren: {2}, -- numSeniors: {3}", chance, hasAdults, hasChildren, numSeniors);
-            return chance;
+        private NumWorkers getNumWorkers(ref Citizen.BehaviourData workerBehaviourData) {
+            NumWorkers numWorkers = new NumWorkers();
+            numWorkers.maxNumUneducatedWorkers = this.numUneducatedWorkers;
+            numWorkers.numUneducatedWorkers = workerBehaviourData.m_educated0Count;
+            numWorkers.maxNumEducatedWorkers = this.numEducatedWorkers;
+            numWorkers.numEducatedWorkers = workerBehaviourData.m_educated1Count;
+            numWorkers.maxNumWellEducatedWorkers = this.numWellEducatedWorkers;
+            numWorkers.numWellEducatedWorkers = workerBehaviourData.m_educated2Count;
+            numWorkers.maxNumHighlyEducatedWorkers = this.numHighlyEducatedWorkers;
+            numWorkers.numHighlyEducatedWorkers = workerBehaviourData.m_educated3Count;
+            return numWorkers;
         }
 
         public override void SimulationStep(ushort buildingID, ref Building buildingData, ref Building.Frame frameData) {
@@ -674,17 +562,17 @@ namespace SeniorCitizenCenterMod {
             return (float) ((double) PlayerBuildingAI.GetProductionRate(num, budget) * (double) this.operationRadius * 0.00999999977648258);
         }
 
-        protected override void HandleWorkAndVisitPlaces(ushort buildingId, ref Building buildingData, ref Citizen.BehaviourData behaviour, ref int aliveWorkerCount, ref int totalWorkerCount, ref int workPlaceCount, ref int aliveVisitorCount, ref int totalVisitorCount, ref int visitPlaceCount) {
+        protected override void HandleWorkAndVisitPlaces(ushort buildingId, ref Building buildingData, ref Citizen.BehaviourData workerBehaviourData, ref int aliveWorkerCount, ref int totalWorkerCount, ref int workPlaceCount, ref int aliveVisitorCount, ref int totalVisitorCount, ref int visitPlaceCount) {
             workPlaceCount = workPlaceCount + this.numUneducatedWorkers + this.numEducatedWorkers + this.numWellEducatedWorkers + this.numHighlyEducatedWorkers;
-            this.GetWorkBehaviour(buildingId, ref buildingData, ref behaviour, ref aliveWorkerCount, ref totalWorkerCount);
-            this.HandleWorkPlaces(buildingId, ref buildingData, this.numUneducatedWorkers, this.numEducatedWorkers, this.numWellEducatedWorkers, this.numHighlyEducatedWorkers, ref behaviour, aliveWorkerCount, totalWorkerCount);
+            this.GetWorkBehaviour(buildingId, ref buildingData, ref workerBehaviourData, ref aliveWorkerCount, ref totalWorkerCount);
+            this.HandleWorkPlaces(buildingId, ref buildingData, this.numUneducatedWorkers, this.numEducatedWorkers, this.numWellEducatedWorkers, this.numHighlyEducatedWorkers, ref workerBehaviourData, aliveWorkerCount, totalWorkerCount);
         }
 
         public override string GetLocalizedTooltip() {
             string str = LocaleFormatter.FormatGeneric("AIINFO_WATER_CONSUMPTION", (object) (this.GetWaterConsumption() * 16)) + System.Environment.NewLine + LocaleFormatter.FormatGeneric("AIINFO_ELECTRICITY_CONSUMPTION", (object) (this.GetElectricityConsumption() * 16));
             return TooltipHelper.Append(base.GetLocalizedTooltip(), TooltipHelper.Format(LocaleFormatter.Info1, str, LocaleFormatter.Info2, String.Format("Number of Rooms: {0}", this.numRooms)));
         }
-
+        
         public override string GetLocalizedStats(ushort buildingId, ref Building data) {
             CitizenManager instance = Singleton<CitizenManager>.instance;
             uint citizenUnitIndex = data.m_citizenUnits;
@@ -692,6 +580,7 @@ namespace SeniorCitizenCenterMod {
             int numRoomsOccupied = 0;
             int counter = 0;
 
+            // Calculate number of occupied rooms and total number of residents
             while ((int) citizenUnitIndex != 0) {
                 uint nextCitizenUnitIndex = instance.m_units.m_buffer[citizenUnitIndex].m_nextUnit;
                 if ((instance.m_units.m_buffer[citizenUnitIndex].m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
@@ -713,8 +602,36 @@ namespace SeniorCitizenCenterMod {
                     break;
                 }
             }
+            
+            // Make the panel a little bit bigger to support the stats
+            UIComponent infoPanel = UIView.library.Get(PanelHelper.INFO_PANEL_NAME);
+            if (infoPanel.height < 339f) {
+                infoPanel.height = 340f;
+            }
 
+            UIComponent statsPanel = infoPanel.Find(PanelHelper.STATS_PANEL_NAME);
+            if (statsPanel.height < 124f) {
+                statsPanel.height = 125f;
+            }
+            
+            // Get Worker Data
+            Citizen.BehaviourData workerBehaviourData = new Citizen.BehaviourData();
+            int aliveWorkerCount = 0;
+            int totalWorkerCount = 0;
+            this.GetWorkBehaviour(buildingId, ref data, ref workerBehaviourData, ref aliveWorkerCount, ref totalWorkerCount);
+
+            // Build Stats
+            // TODO: Localize!!!
             StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.Append(string.Format("Uneducated Workers: {0} of {1}", workerBehaviourData.m_educated0Count, this.numUneducatedWorkers));
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append(string.Format("Educated Workers: {0} of {1}", workerBehaviourData.m_educated1Count, this.numEducatedWorkers));
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append(string.Format("Well Educated Workers: {0} of {1}", workerBehaviourData.m_educated2Count, this.numWellEducatedWorkers));
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append(string.Format("Highly Educated Workers: {0} of {1}", workerBehaviourData.m_educated3Count, this.numHighlyEducatedWorkers));
+            stringBuilder.Append(Environment.NewLine);
+            stringBuilder.Append(Environment.NewLine);
             stringBuilder.Append(string.Format("Nursing Home Quality: {0}", this.quality));
             stringBuilder.Append(Environment.NewLine);
             stringBuilder.Append(string.Format("Rooms Occupied: {0} of {1}", numRoomsOccupied, this.numRooms));
@@ -728,6 +645,13 @@ namespace SeniorCitizenCenterMod {
             base.CreateBuilding(buildingId, ref data);
             int workCount = this.numUneducatedWorkers + this.numEducatedWorkers + this.numWellEducatedWorkers + this.numHighlyEducatedWorkers;
             Singleton<CitizenManager>.instance.CreateUnits(out data.m_citizenUnits, ref Singleton<SimulationManager>.instance.m_randomizer, buildingId, 0, this.numRooms, workCount, 0, 0, 0);
+
+            // Ensure quality is within bounds
+            if (this.quality < 0) {
+                this.quality = 0;
+            } else if (this.quality > 5) {
+                this.quality = 5;
+            }
         }
 
         public override void BuildingLoaded(ushort buildingId, ref Building data, uint version) {
