@@ -41,6 +41,7 @@ namespace SeniorCitizenCenterMod {
         }
 
         public void OnLevelUnloading() {
+            this.loadedLevel = -1;
             Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.OnLevelUnloading: {0}", this.loadedLevel);
         }
 

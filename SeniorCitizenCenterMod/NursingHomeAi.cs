@@ -15,7 +15,7 @@ namespace SeniorCitizenCenterMod {
         private const bool LOG_RANGE = false;
         private const bool LOG_BUILDING = false;
 
-        private static readonly float[] QUALITY_VALUES = { 50, 25, 10, 40, 70, 125 };
+        private static readonly float[] QUALITY_VALUES = { -50, -25, 10, 40, 70, 125 };
 
         // TODO: Workout how to have Nursing Homes Coverage display separate from Health Care
         //private static readonly ItemClass NURSING_HOME_ITEM_CLASS = NursingHomeAi.initNewItemClass();
@@ -525,7 +525,7 @@ namespace SeniorCitizenCenterMod {
             Vector3 position = buildingData.m_position;
             position.y += this.m_info.m_size.y;
             Singleton<NotificationManager>.instance.AddEvent(notificationEventType, position, 1.5f);
-            Singleton<NotificationManager>.instance.AddWaveEvent(buildingData.m_position, notificationWaveEventType, ImmaterialResourceManager.Resource.DeathCare, NursingHomeAi.QUALITY_VALUES[this.quality], this.operationRadius);
+            Singleton<NotificationManager>.instance.AddWaveEvent(buildingData.m_position, notificationWaveEventType, ImmaterialResourceManager.Resource.DeathCare, -NursingHomeAi.QUALITY_VALUES[this.quality], this.operationRadius);
         }
 
         public override float GetCurrentRange(ushort buildingId, ref Building data) {
