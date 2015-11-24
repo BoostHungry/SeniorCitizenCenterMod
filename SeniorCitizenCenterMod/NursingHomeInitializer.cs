@@ -72,6 +72,11 @@ namespace SeniorCitizenCenterMod {
             Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization Attempting Initialization");
             Singleton<LoadingManager>.instance.QueueLoadingAction(ActionWrapper(() => {
                 try {
+                    if (this.loadedLevel == LOADED_LEVEL_GAME) {
+                        // Reset the PanelHelper and initilize the Healthcare Menu
+                        PanelHelper.reset();
+                        this.StartCoroutine(this.initHealthcareMenu());
+                    }
                     if (this.loadedLevel == LOADED_LEVEL_GAME || this.loadedLevel == LOADED_LEVEL_ASSET_EDITOR) {
                         this.StartCoroutine(this.initNursingHomes(PrefabCollection<BuildingInfo>.FindLoaded(MEDICAL_CLINIC_NAME)));
                         AddQueuedActionsToLoadingQueue();
@@ -84,6 +89,15 @@ namespace SeniorCitizenCenterMod {
             // Set initilized
             this.initialized = true;
             this.attemptingInitialization = 0;
+        }
+
+        private IEnumerator initHealthcareMenu() {
+            while (!Singleton<LoadingManager>.instance.m_loadingComplete) {
+                if (PanelHelper.initCustomHealthcareGroupPanel()) {
+                    break;
+                }
+                yield return new WaitForEndOfFrame();
+            }
         }
 
         private IEnumerator initNursingHomes(BuildingInfo buildingToCopyFrom) {
