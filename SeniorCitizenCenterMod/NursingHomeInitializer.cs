@@ -21,6 +21,7 @@ namespace SeniorCitizenCenterMod {
 
         private readonly AiReplacementHelper aiReplacementHelper = new AiReplacementHelper();
         private int attemptingInitialization;
+        private int numTimesSearchedForMedicalClinic = 0;
 
         private bool initialized;
         private int loadedLevel;
@@ -56,20 +57,28 @@ namespace SeniorCitizenCenterMod {
         }
 
         private void attemptInitialization() {
+            // Make sure not attempting initilization after loading has already completed -- This means the mod may not function properly, but it won't waste resources continuing to try
+            if (Singleton<LoadingManager>.instance.m_loadingComplete) {
+                Logger.logError("NursingHomeInitializer.attemptInitialization -- *** NURSING HOMES FUNCTIONALITY DID NOT INITLIZIE PRIOR TO GAME LOADING -- THE SENIOR CITIZEN CENTER MOD MAY NOT FUNCTION PROPERLY ***");
+                // Set initilized so it won't keep trying
+                this.setInitialized();
+            }
+
             // Check to see if initilization can start
             if (PrefabCollection<BuildingInfo>.LoadedCount() <= 0) {
                 this.attemptingInitialization = 0;
                 return;
             }
 
-            // Wait for the Medical Clinic to load since all new Nursing Homes will copy its values
-            if (PrefabCollection<BuildingInfo>.FindLoaded(MEDICAL_CLINIC_NAME) == null) {
+            // Wait for the Medical Clinic or other HospitalAI Building to load since all new Nursing Homes will copy its values
+            BuildingInfo medicalBuildingInfo = this.findMedicalBuildingInfo();
+            if (medicalBuildingInfo == null) {
                 this.attemptingInitialization = 0;
                 return;
             }
 
             // Start loading
-            Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization Attempting Initialization");
+            Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization -- Attempting Initialization");
             Singleton<LoadingManager>.instance.QueueLoadingAction(ActionWrapper(() => {
                 try {
                     if (this.loadedLevel == LOADED_LEVEL_GAME) {
@@ -78,7 +87,7 @@ namespace SeniorCitizenCenterMod {
                         this.StartCoroutine(this.initHealthcareMenu());
                     }
                     if (this.loadedLevel == LOADED_LEVEL_GAME || this.loadedLevel == LOADED_LEVEL_ASSET_EDITOR) {
-                        this.StartCoroutine(this.initNursingHomes(PrefabCollection<BuildingInfo>.FindLoaded(MEDICAL_CLINIC_NAME)));
+                        this.StartCoroutine(this.initNursingHomes(medicalBuildingInfo));
                         AddQueuedActionsToLoadingQueue();
                     }
                 } catch (Exception e) {
@@ -87,8 +96,39 @@ namespace SeniorCitizenCenterMod {
             }));
 
             // Set initilized
+            this.setInitialized();
+        }
+
+        private void setInitialized() {
             this.initialized = true;
             this.attemptingInitialization = 0;
+            this.numTimesSearchedForMedicalClinic = 0;
+        }
+
+        private BuildingInfo findMedicalBuildingInfo() {
+            // First check for the known Medical Clinic
+            BuildingInfo medicalBuildingInfo = PrefabCollection<BuildingInfo>.FindLoaded(MEDICAL_CLINIC_NAME);
+            if (medicalBuildingInfo != null) {
+                return medicalBuildingInfo;
+            }
+
+            // Try 5 times to search for the Medical Clinic before giving up
+            if (++this.numTimesSearchedForMedicalClinic < 5) {
+                return null;
+            }
+
+            // Attempt to find a suitable medical building that can be used as a template
+            Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.findMedicalBuildingInfo -- Couldn't find the Medical Clinic asset after {0} tries, attempting to search for any Building with a HospitalAi", this.numTimesSearchedForMedicalClinic);
+            for (uint i=0; (long) PrefabCollection<BuildingInfo>.LoadedCount() > (long) i; ++i) {
+                BuildingInfo buildingInfo = PrefabCollection<BuildingInfo>.GetLoaded(i);
+                if (buildingInfo != null && buildingInfo.GetService() == ItemClass.Service.HealthCare && !buildingInfo.m_buildingAI.IsWonder() && buildingInfo.m_buildingAI is HospitalAI) {
+                    Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.findMedicalBuildingInfo -- Using the {0} as a template instead of the Medical Clinic", buildingInfo);
+                    return buildingInfo;
+                }
+            }
+
+            // Return null to try again next time
+            return null;
         }
 
         private IEnumerator initHealthcareMenu() {
