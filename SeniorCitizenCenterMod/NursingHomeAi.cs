@@ -384,7 +384,7 @@ namespace SeniorCitizenCenterMod {
             this.HandleDead(buildingID, ref buildingData, ref behaviour, totalCount);
 
             // Handle Crime and Fire Factors
-            int crimeAccumulation = behaviour.m_crimeAccumulation / 10;
+            int crimeAccumulation = behaviour.m_crimeAccumulation / (3 * this.numRooms);
             if ((policies & DistrictPolicies.Services.RecreationalUse) != DistrictPolicies.Services.None) {
                 crimeAccumulation = crimeAccumulation * 3 + 3 >> 2;
             }
