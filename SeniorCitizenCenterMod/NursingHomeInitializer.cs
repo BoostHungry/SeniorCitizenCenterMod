@@ -11,8 +11,8 @@ namespace SeniorCitizenCenterMod {
     public class NursingHomeInitializer : MonoBehaviour {
         private const bool LOG_INITIALIZER = true;
 
-        private const int LOADED_LEVEL_GAME = 6;
-        private const int LOADED_LEVEL_ASSET_EDITOR = 19;
+        public const int LOADED_LEVEL_GAME = 6;
+        public const int LOADED_LEVEL_ASSET_EDITOR = 19;
 
         private const String MEDICAL_CLINIC_NAME = "Medical Clinic";
 
@@ -24,7 +24,7 @@ namespace SeniorCitizenCenterMod {
         private int numTimesSearchedForMedicalClinic = 0;
 
         private bool initialized;
-        private int loadedLevel;
+        private int loadedLevel = -1;
 
         private void Awake() {
             // Specify that this object should not be destroyed
@@ -36,7 +36,7 @@ namespace SeniorCitizenCenterMod {
             Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer Starting");
         }
 
-        private void OnLevelWasLoaded(int level) {
+        public void OnLevelWasLoaded(int level) {
             this.loadedLevel = level;
             Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.OnLevelWasLoaded: {0}", level);
         }
@@ -44,6 +44,10 @@ namespace SeniorCitizenCenterMod {
         public void OnLevelUnloading() {
             this.loadedLevel = -1;
             Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.OnLevelUnloading: {0}", this.loadedLevel);
+        }
+
+        public int getLoadedLevel() {
+            return this.loadedLevel;
         }
 
         private void Update() {
@@ -141,18 +145,22 @@ namespace SeniorCitizenCenterMod {
         }
 
         private IEnumerator initNursingHomes(BuildingInfo buildingToCopyFrom) {
+            float capcityModifier = SeniorCitizenCenterMod.getInstance().getOptionsManager().getCapacityModifier();
             uint index = 0U;
             while (!Singleton<LoadingManager>.instance.m_loadingComplete) {
-                for (; (long) PrefabCollection<BuildingInfo>.LoadedCount() > (long) index; ++index) {
+                for (; PrefabCollection<BuildingInfo>.LoadedCount() > index; ++index) {
                     BuildingInfo buildingInfo = PrefabCollection<BuildingInfo>.GetLoaded(index);
                     if (buildingInfo != null && buildingInfo.name.EndsWith("_Data") && buildingInfo.name.Contains("NH123")) {
                         this.aiReplacementHelper.replaceBuildingAi<NursingHomeAi>(buildingInfo, buildingToCopyFrom);
+                    }
+                    if (this.loadedLevel == LOADED_LEVEL_GAME && buildingInfo != null && buildingInfo.m_buildingAI is NursingHomeAi) {
+                        ((NursingHomeAi) buildingInfo.m_buildingAI).updateCapacity(capcityModifier);
                     }
                 }
                 yield return new WaitForEndOfFrame();
             }
         }
-
+        
         private static IEnumerator ActionWrapper(Action a) {
             a();
             yield break;

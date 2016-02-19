@@ -1,13 +1,21 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace SeniorCitizenCenterMod {
     internal static class Logger {
         private static readonly string Prefix = "SeniorCitizenCenterMod: ";
 
+        public static readonly bool LOG_OPTIONS = true;
+        public static readonly bool LOG_CAPACITY_MANAGEMENT = true;
+
         public static void logInfo(bool shouldLog, string message, params object[] args) {
             if (shouldLog) {
                 Logger.logInfo(message, args);
             }
+        }
+
+        internal static void logInfo(object lOG_OPTIONS, string v) {
+            throw new NotImplementedException();
         }
 
         public static void logInfo(string message, params object[] args) {

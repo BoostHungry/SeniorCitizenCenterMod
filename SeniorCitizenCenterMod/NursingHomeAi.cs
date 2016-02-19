@@ -7,6 +7,7 @@ using ColossalFramework.DataBinding;
 using ColossalFramework.Math;
 using ColossalFramework.UI;
 using UnityEngine;
+using System.Threading;
 
 namespace SeniorCitizenCenterMod {
     public class NursingHomeAi : PlayerBuildingAI {
@@ -30,6 +31,7 @@ namespace SeniorCitizenCenterMod {
 
         [CustomizableProperty("Number of Rooms")]
         public int numRooms = 25;
+        private float capacityModifier = 1.0f;
 
         [CustomizableProperty("Uneducated Workers", "Workers", 0)]
         public int numUneducatedWorkers = 5;
@@ -384,7 +386,7 @@ namespace SeniorCitizenCenterMod {
             this.HandleDead(buildingID, ref buildingData, ref behaviour, totalCount);
 
             // Handle Crime and Fire Factors
-            int crimeAccumulation = behaviour.m_crimeAccumulation / (3 * this.numRooms);
+            int crimeAccumulation = behaviour.m_crimeAccumulation / (3 * getModifiedCapacity());
             if ((policies & DistrictPolicies.Services.RecreationalUse) != DistrictPolicies.Services.None) {
                 crimeAccumulation = crimeAccumulation * 3 + 3 >> 2;
             }
@@ -565,7 +567,7 @@ namespace SeniorCitizenCenterMod {
 
         public override string GetLocalizedTooltip() {
             string str = LocaleFormatter.FormatGeneric("AIINFO_WATER_CONSUMPTION", (object) (this.GetWaterConsumption() * 16)) + System.Environment.NewLine + LocaleFormatter.FormatGeneric("AIINFO_ELECTRICITY_CONSUMPTION", (object) (this.GetElectricityConsumption() * 16));
-            return TooltipHelper.Append(base.GetLocalizedTooltip(), TooltipHelper.Format(LocaleFormatter.Info1, str, LocaleFormatter.Info2, String.Format("Number of Rooms: {0}", this.numRooms)));
+            return TooltipHelper.Append(base.GetLocalizedTooltip(), TooltipHelper.Format(LocaleFormatter.Info1, str, LocaleFormatter.Info2, String.Format("Number of Rooms: {0}", getModifiedCapacity())));
         }
         
         public override string GetLocalizedStats(ushort buildingId, ref Building data) {
@@ -629,17 +631,163 @@ namespace SeniorCitizenCenterMod {
             stringBuilder.Append(Environment.NewLine);
             stringBuilder.Append(string.Format("Nursing Home Quality: {0}", this.quality));
             stringBuilder.Append(Environment.NewLine);
-            stringBuilder.Append(string.Format("Rooms Occupied: {0} of {1}", numRoomsOccupied, this.numRooms));
+            stringBuilder.Append(string.Format("Rooms Occupied: {0} of {1}", numRoomsOccupied, getModifiedCapacity()));
             stringBuilder.Append(Environment.NewLine);
             stringBuilder.Append(string.Format("Number of Residents: {0}", numResidents));
             return stringBuilder.ToString();
+        }
+
+        public void updateCapacity(float newCapacityModifier) {
+            Logger.logInfo(Logger.LOG_OPTIONS, "NursingHomeAI.updateCapacity -- Updating capacity with modifier: {0}", newCapacityModifier);
+            // Set the capcityModifier and check to see if the value actually changes
+            if (Interlocked.Exchange(ref this.capacityModifier, newCapacityModifier) == newCapacityModifier) {
+                // Capcity has already been set to this value, nothing to do
+                Logger.logInfo(Logger.LOG_OPTIONS, "NursingHomeAI.updateCapacity -- Skipping capacity change because the value was already set");
+                return;
+            }
+        }
+
+        private int getModifiedCapacity() {
+            return (this.capacityModifier > 0 ? (int) (this.numRooms * this.capacityModifier) : this.numRooms);
+        }
+
+        public void validateCapacity(ushort buildingId, ref Building data, bool shouldCreateRooms) {
+            int numRoomsExpected = this.getModifiedCapacity();
+            
+            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
+            uint citizenUnitIndex = data.m_citizenUnits;
+            uint lastCitizenUnitIndex = 0;
+            int numRoomsFound = 0;
+
+            // Count the number of rooms
+            while ((int) citizenUnitIndex != 0) {
+                uint nextCitizenUnitIndex = citizenManager.m_units.m_buffer[citizenUnitIndex].m_nextUnit;
+                if ((citizenManager.m_units.m_buffer[citizenUnitIndex].m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
+                    numRoomsFound++;
+                }
+                lastCitizenUnitIndex = citizenUnitIndex;
+                citizenUnitIndex = nextCitizenUnitIndex;
+            }
+
+            Logger.logInfo(Logger.LOG_CAPACITY_MANAGEMENT, "NursingHomeAi.validateCapacity -- Checking Expected Capacity {0} vs Current Capacity {1} for Building {2}", numRoomsExpected, numRoomsFound, buildingId);
+            // Check to see if the correct amount of rooms are present, otherwise adjust accordingly
+            if (numRoomsFound == numRoomsExpected) {
+                return;
+            } else if (numRoomsFound < numRoomsExpected) {
+                if (shouldCreateRooms) {
+                    // Only create rooms after a building is already loaded, otherwise let EnsureCitizenUnits to create them
+                    this.createRooms((numRoomsExpected - numRoomsFound), buildingId, ref data, lastCitizenUnitIndex);
+                }
+            } else {
+                this.deleteRooms((numRoomsFound - numRoomsExpected), buildingId, ref data);
+            }
+        }
+
+        private void createRooms(int numRoomsToCreate, ushort buildingId, ref Building data, uint lastCitizenUnitIndex) {
+            Logger.logInfo(Logger.LOG_CAPACITY_MANAGEMENT, "NursingHomeAi.createRooms -- Creating {0} Rooms", numRoomsToCreate);
+            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
+
+            uint firstUnit = 0;
+            citizenManager.CreateUnits(out firstUnit, ref Singleton<SimulationManager>.instance.m_randomizer, buildingId, (ushort) 0, numRoomsToCreate, 0, 0, 0, 0);
+            citizenManager.m_units.m_buffer[lastCitizenUnitIndex].m_nextUnit = firstUnit;
+        }
+
+        private void deleteRooms(int numRoomsToDelete, ushort buildingId, ref Building data) {
+            Logger.logInfo(Logger.LOG_CAPACITY_MANAGEMENT, "NursingHomeAi.deleteRooms -- Deleting {0} Rooms", numRoomsToDelete);
+            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
+            
+            // Always start with the second to avoid loss of pointer from the building to the first unit
+            uint prevUnit = data.m_citizenUnits;
+            uint citizenUnitIndex = citizenManager.m_units.m_buffer[data.m_citizenUnits].m_nextUnit;
+
+            // First try to delete empty rooms
+            while (numRoomsToDelete > 0 && (int) citizenUnitIndex != 0) {
+                bool deleted = false;
+                uint nextCitizenUnitIndex = citizenManager.m_units.m_buffer[citizenUnitIndex].m_nextUnit;
+                if ((citizenManager.m_units.m_buffer[citizenUnitIndex].m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
+                    if (citizenManager.m_units.m_buffer[citizenUnitIndex].Empty()) {
+                        this.deleteRoom(citizenUnitIndex, ref citizenManager.m_units.m_buffer[citizenUnitIndex], prevUnit);
+                        numRoomsToDelete--;
+                        deleted = true;
+                    }
+                }
+                if(!deleted) {
+                    prevUnit = citizenUnitIndex;
+                }
+                citizenUnitIndex = nextCitizenUnitIndex;
+            }
+
+            // Check to see if enough rooms were deleted
+            if(numRoomsToDelete == 0) {
+                return;
+            }
+
+            Logger.logInfo(Logger.LOG_CAPACITY_MANAGEMENT, "NursingHomeAi.deleteRooms -- Deleting {0} Occupied Rooms", numRoomsToDelete);
+            // Still need to delete more rooms so start deleting rooms with people in them...
+            // Always start with the second to avoid loss of pointer from the building to the first unit
+            prevUnit = data.m_citizenUnits;
+            citizenUnitIndex = citizenManager.m_units.m_buffer[data.m_citizenUnits].m_nextUnit;
+
+            // Delete any rooms still available until the correct number is acheived
+            while (numRoomsToDelete > 0 && (int) citizenUnitIndex != 0) {
+                bool deleted = false;
+                uint nextCitizenUnitIndex = citizenManager.m_units.m_buffer[citizenUnitIndex].m_nextUnit;
+                if ((citizenManager.m_units.m_buffer[citizenUnitIndex].m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
+                    this.deleteRoom(citizenUnitIndex, ref citizenManager.m_units.m_buffer[citizenUnitIndex], prevUnit);
+                    numRoomsToDelete--;
+                    deleted = true;
+                }
+                if (!deleted) {
+                    prevUnit = citizenUnitIndex;
+                }
+                citizenUnitIndex = nextCitizenUnitIndex;
+            }
+        }
+
+        private void deleteRoom(uint unit, ref CitizenUnit data, uint prevUnit) {
+            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
+
+            // Update the pointer to bypass this unit
+            citizenManager.m_units.m_buffer[prevUnit].m_nextUnit = data.m_nextUnit;
+
+            // Release all the citizens
+            this.releaseUnitCitizen(data.m_citizen0, ref data);
+            this.releaseUnitCitizen(data.m_citizen1, ref data);
+            this.releaseUnitCitizen(data.m_citizen2, ref data);
+            this.releaseUnitCitizen(data.m_citizen3, ref data);
+            this.releaseUnitCitizen(data.m_citizen4, ref data);
+
+            // Release the Unit
+            data = new CitizenUnit();
+            citizenManager.m_units.ReleaseItem(unit);
+        }
+
+        private void releaseUnitCitizen(uint citizen, ref CitizenUnit data) {
+            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
+
+            if ((int) citizen == 0) {
+                return;
+            }
+            if ((data.m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
+                citizenManager.m_citizens.m_buffer[citizen].m_homeBuilding = 0;
+            }
+            if ((data.m_flags & (CitizenUnit.Flags.Work | CitizenUnit.Flags.Student)) != CitizenUnit.Flags.None) {
+                citizenManager.m_citizens.m_buffer[citizen].m_workBuilding = 0;
+            }
+            if ((data.m_flags & CitizenUnit.Flags.Visit) != CitizenUnit.Flags.None) {
+                citizenManager.m_citizens.m_buffer[citizen].m_visitBuilding = 0;
+            }
+            if ((data.m_flags & CitizenUnit.Flags.Vehicle) == CitizenUnit.Flags.None) {
+                return;
+            }
+            citizenManager.m_citizens.m_buffer[citizen].m_vehicle = 0;
         }
 
         public override void CreateBuilding(ushort buildingId, ref Building data) {
             Logger.logInfo(LOG_BUILDING, "NursingHomeAI.CreateBuilding -- New Nursing Home Created: {0}", data.Info.name);
             base.CreateBuilding(buildingId, ref data);
             int workCount = this.numUneducatedWorkers + this.numEducatedWorkers + this.numWellEducatedWorkers + this.numHighlyEducatedWorkers;
-            Singleton<CitizenManager>.instance.CreateUnits(out data.m_citizenUnits, ref Singleton<SimulationManager>.instance.m_randomizer, buildingId, 0, this.numRooms, workCount, 0, 0, 0);
+            Singleton<CitizenManager>.instance.CreateUnits(out data.m_citizenUnits, ref Singleton<SimulationManager>.instance.m_randomizer, buildingId, 0, getModifiedCapacity(), workCount, 0, 0, 0);
 
             // Ensure quality is within bounds
             if (this.quality < 0) {
@@ -650,10 +798,14 @@ namespace SeniorCitizenCenterMod {
         }
 
         public override void BuildingLoaded(ushort buildingId, ref Building data, uint version) {
-            Logger.logInfo(LOG_BUILDING, "NursingHomeAI.BuildingLoaded -- New Nursing Home Loaded: {0}", data.Info.name);
+            Logger.logInfo(LOG_BUILDING, "NursingHomeAI.BuildingLoaded -- Nursing Home Loaded: {0}", data.Info.name);
             base.BuildingLoaded(buildingId, ref data, version);
+
+            // Validate the capacity and adjust accordingly - but don't create new units, that will be done by EnsureCitizenUnits
+            this.validateCapacity(buildingId, ref data, false);
+
             int workCount = this.numUneducatedWorkers + this.numEducatedWorkers + this.numWellEducatedWorkers + this.numHighlyEducatedWorkers;
-            this.EnsureCitizenUnits(buildingId, ref data, this.numRooms, workCount, 0, 0);
+            this.EnsureCitizenUnits(buildingId, ref data, getModifiedCapacity(), workCount, 0, 0);
         }
 
         public override void ReleaseBuilding(ushort buildingId, ref Building data) {
