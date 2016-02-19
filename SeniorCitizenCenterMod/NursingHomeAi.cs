@@ -312,7 +312,9 @@ namespace SeniorCitizenCenterMod {
             Logger.logInfo(LOG_SIMULATION, "NursingHomeAi.SimulationStepActive -- modifiedIncomeAccumulation: {0}", modifiedIncomeAccumulation);
 
             if ((int) buildingData.m_fireIntensity == 0) {
-                int commonConsumptionValue = this.HandleCommonConsumption(buildingID, ref buildingData, ref modifiedElectricityConsumption, ref waterConsumption, ref modifiedSewageAccumulation, ref garbageAccumulation, policies);
+                // TODO: **!** This was removed in the latest expansion
+                //int commonConsumptionValue = this.HandleCommonConsumption(buildingID, ref buildingData, ref modifiedElectricityConsumption, ref waterConsumption, ref modifiedSewageAccumulation, ref garbageAccumulation, policies);
+
                 // TODO: Possibly allow for income
                 //modifiedIncomeAccumulation = (modifiedIncomeAccumulation * commonConsumptionValue + 99) / 100;
                 //if (modifiedIncomeAccumulation != 0) {
@@ -438,7 +440,9 @@ namespace SeniorCitizenCenterMod {
             //        });
             //}
 
-            districtManager.m_districts.m_buffer[(int) district].AddResidentialData(ref behaviour, aliveCount, health, happiness, crimeRate, homeCount, aliveHomeCount, emptyHomeCount, (int) this.m_info.m_class.m_level, modifiedElectricityConsumption, waterConsumption, modifiedSewageAccumulation, garbageAccumulation, modifiedIncomeAccumulation, Mathf.Min(100, (int) buildingData.m_garbageBuffer / 50), (int) buildingData.m_waterPollution * 100 / (int) byte.MaxValue, buildingData.SubCultureType);
+            // TODO: **!** This was removed in the latest expansion
+            //districtManager.m_districts.m_buffer[(int) district].AddResidentialData(ref behaviour, aliveCount, health, happiness, crimeRate, homeCount, aliveHomeCount, emptyHomeCount, (int) this.m_info.m_class.m_level, modifiedElectricityConsumption, waterConsumption, modifiedSewageAccumulation, garbageAccumulation, modifiedIncomeAccumulation, Mathf.Min(100, (int) buildingData.m_garbageBuffer / 50), (int) buildingData.m_waterPollution * 100 / (int) byte.MaxValue, buildingData.SubCultureType);
+
             base.SimulationStepActive(buildingID, ref buildingData, ref frameData);
             this.HandleFire(buildingID, ref buildingData, ref frameData, policies);
         }
