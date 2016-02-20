@@ -224,7 +224,7 @@ namespace SeniorCitizenCenterMod {
             DistrictPolicies.Special special = districtManager.m_districts.m_buffer[(int) district].m_specialPolicies;
 
             // No clue what this is for, setting some policies at the disctrict level?
-            districtManager.m_districts.m_buffer[(int) district].m_servicePoliciesEffect |= policies & (DistrictPolicies.Services.PowerSaving | DistrictPolicies.Services.WaterSaving | DistrictPolicies.Services.SmokeDetectors | DistrictPolicies.Services.PetBan | DistrictPolicies.Services.Recycling | DistrictPolicies.Services.SmokingBan);
+            districtManager.m_districts.m_buffer[(int) district].m_servicePoliciesEffect |= policies & (DistrictPolicies.Services.PowerSaving | DistrictPolicies.Services.WaterSaving | DistrictPolicies.Services.SmokeDetectors | DistrictPolicies.Services.PetBan | DistrictPolicies.Services.Recycling | DistrictPolicies.Services.SmokingBan | DistrictPolicies.Services.ExtraInsulation | DistrictPolicies.Services.NoElectricity | DistrictPolicies.Services.OnlyElectricity);
 
 
             // TODO: Ignore Tax Stuff? - Might want to add possabilitiy to collect taxes from Nursing Homes
@@ -237,7 +237,7 @@ namespace SeniorCitizenCenterMod {
             //}
 
             // No clue what these are for, setting some policies at the disctrict level?
-            districtManager.m_districts.m_buffer[(int) district].m_cityPlanningPoliciesEffect |= cityPlanning & (DistrictPolicies.CityPlanning.HighTechHousing | DistrictPolicies.CityPlanning.HeavyTrafficBan | DistrictPolicies.CityPlanning.EncourageBiking | DistrictPolicies.CityPlanning.BikeBan | DistrictPolicies.CityPlanning.OldTown);
+            districtManager.m_districts.m_buffer[(int) district].m_cityPlanningPoliciesEffect |= cityPlanning & (DistrictPolicies.CityPlanning.HighTechHousing | DistrictPolicies.CityPlanning.HeavyTrafficBan | DistrictPolicies.CityPlanning.EncourageBiking | DistrictPolicies.CityPlanning.BikeBan | DistrictPolicies.CityPlanning.OldTown | DistrictPolicies.CityPlanning.AntiSlip);
             districtManager.m_districts.m_buffer[(int) district].m_specialPoliciesEffect |= special & (DistrictPolicies.Special.ProHippie | DistrictPolicies.Special.ProHipster | DistrictPolicies.Special.ProRedneck | DistrictPolicies.Special.ProGangsta | DistrictPolicies.Special.AntiHippie | DistrictPolicies.Special.AntiHipster | DistrictPolicies.Special.AntiRedneck | DistrictPolicies.Special.AntiGangsta | DistrictPolicies.Special.ComeOneComeAll | DistrictPolicies.Special.WeAreTheNorm);
 
             // Handle Sub Culture -- Not really sure why only when ProHippie is "loaded"
@@ -295,6 +295,15 @@ namespace SeniorCitizenCenterMod {
             garbageAccumulation = (garbageAccumulation * behaviour.m_garbageAccumulation + 9999) / 10000;
             int modifiedIncomeAccumulation = 0; //TODO: Possibly allow for income: (incomeAccumulation * behaviour.m_incomeAccumulation + 9999) / 10000;
 
+            // Handle Heating
+            int heatingConsumption = 0;
+            if (modifiedElectricityConsumption != 0 && districtManager.IsPolicyLoaded(DistrictPolicies.Policies.ExtraInsulation)) {
+                if ((policies & DistrictPolicies.Services.ExtraInsulation) != DistrictPolicies.Services.None) {
+                    heatingConsumption = Mathf.Max(1, modifiedElectricityConsumption * 3 + 8 >> 4);
+                } else
+                    heatingConsumption = Mathf.Max(1, modifiedElectricityConsumption + 2 >> 2);
+            }
+
             // Handle Recylcing and Pets
             if (garbageAccumulation != 0) {
                 if ((policies & DistrictPolicies.Services.Recycling) != DistrictPolicies.Services.None) {
@@ -312,8 +321,7 @@ namespace SeniorCitizenCenterMod {
             Logger.logInfo(LOG_SIMULATION, "NursingHomeAi.SimulationStepActive -- modifiedIncomeAccumulation: {0}", modifiedIncomeAccumulation);
 
             if ((int) buildingData.m_fireIntensity == 0) {
-                // TODO: **!** This was removed in the latest expansion
-                //int commonConsumptionValue = this.HandleCommonConsumption(buildingID, ref buildingData, ref modifiedElectricityConsumption, ref waterConsumption, ref modifiedSewageAccumulation, ref garbageAccumulation, policies);
+                int commonConsumptionValue = this.HandleCommonConsumption(buildingID, ref buildingData, ref modifiedElectricityConsumption, ref heatingConsumption, ref waterConsumption, ref modifiedSewageAccumulation, ref garbageAccumulation, policies);
 
                 // TODO: Possibly allow for income
                 //modifiedIncomeAccumulation = (modifiedIncomeAccumulation * commonConsumptionValue + 99) / 100;
@@ -323,7 +331,12 @@ namespace SeniorCitizenCenterMod {
                 buildingData.m_flags |= Building.Flags.Active;
             } else {
                 // Handle on fire
-                buildingData.m_problems = Notification.RemoveProblems(buildingData.m_problems, Notification.Problem.Electricity | Notification.Problem.Water | Notification.Problem.Sewage | Notification.Problem.Flood);
+                modifiedElectricityConsumption = 0;
+                heatingConsumption = 0;
+                waterConsumption = 0;
+                modifiedSewageAccumulation = 0;
+                garbageAccumulation = 0;
+                buildingData.m_problems = Notification.RemoveProblems(buildingData.m_problems, Notification.Problem.Electricity | Notification.Problem.Water | Notification.Problem.Sewage | Notification.Problem.Flood | Notification.Problem.Heating);
                 buildingData.m_flags &= ~Building.Flags.Active;
             }
 
@@ -350,6 +363,11 @@ namespace SeniorCitizenCenterMod {
 
             // Calculate Happiness
             int happiness = Citizen.GetHappiness(health, wellbeing);
+            if ((buildingData.m_problems & Notification.Problem.MajorProblem) != Notification.Problem.None) {
+                happiness -= happiness >> 1;
+            } else if (buildingData.m_problems != Notification.Problem.None) {
+                happiness -= happiness >> 2;
+            }
             Logger.logInfo(LOG_SIMULATION, "NursingHomeAi.SimulationStepActive -- happiness: {0}", happiness);
 
             // TODO: Ignore Tax Stuff for now
@@ -439,12 +457,156 @@ namespace SeniorCitizenCenterMod {
             //            Amount = emptyHomeCount
             //        });
             //}
-
-            // TODO: **!** This was removed in the latest expansion
-            //districtManager.m_districts.m_buffer[(int) district].AddResidentialData(ref behaviour, aliveCount, health, happiness, crimeRate, homeCount, aliveHomeCount, emptyHomeCount, (int) this.m_info.m_class.m_level, modifiedElectricityConsumption, waterConsumption, modifiedSewageAccumulation, garbageAccumulation, modifiedIncomeAccumulation, Mathf.Min(100, (int) buildingData.m_garbageBuffer / 50), (int) buildingData.m_waterPollution * 100 / (int) byte.MaxValue, buildingData.SubCultureType);
+            
+            districtManager.m_districts.m_buffer[(int) district].AddResidentialData(ref behaviour, aliveCount, health, happiness, crimeRate, homeCount, aliveHomeCount, emptyHomeCount, (int) this.m_info.m_class.m_level, modifiedElectricityConsumption, heatingConsumption, waterConsumption, modifiedSewageAccumulation, garbageAccumulation, modifiedIncomeAccumulation, Mathf.Min(100, (int) buildingData.m_garbageBuffer / 50), (int) buildingData.m_waterPollution * 100 / (int) byte.MaxValue, buildingData.SubCultureType);
 
             base.SimulationStepActive(buildingID, ref buildingData, ref frameData);
             this.HandleFire(buildingID, ref buildingData, ref frameData, policies);
+        }
+
+        private static int GetAverageResidentRequirement(ushort buildingID, ref Building data, ImmaterialResourceManager.Resource resource) {
+            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
+            uint citizenUnit = data.m_citizenUnits;
+            int counter = 0;
+            int requirement1 = 0;
+            int requirement2 = 0;
+            while ((int) citizenUnit != 0) {
+                uint num5 = citizenManager.m_units.m_buffer[citizenUnit].m_nextUnit;
+                if ((citizenManager.m_units.m_buffer[citizenUnit].m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
+                    int residentRequirement1 = 0;
+                    int residentRequirement2 = 0;
+                    for (int index = 0; index < 5; ++index) {
+                        uint citizen = citizenManager.m_units.m_buffer[citizenUnit].GetCitizen(index);
+                        if ((int) citizen != 0 && !citizenManager.m_citizens.m_buffer[citizen].Dead) {
+                            residentRequirement1 += NursingHomeAi.GetResidentRequirement(resource, ref citizenManager.m_citizens.m_buffer[citizen]);
+                            ++residentRequirement2;
+                        }
+                    }
+                    if (residentRequirement2 == 0) {
+                        requirement1 += 100;
+                        ++requirement2;
+                    } else {
+                        requirement1 += residentRequirement1;
+                        requirement2 += residentRequirement2;
+                    }
+                }
+                citizenUnit = num5;
+                if (++counter > 524288) {
+                    CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + System.Environment.StackTrace);
+                    break;
+                }
+            }
+            if (requirement2 != 0)
+                return (requirement1 + (requirement2 >> 1)) / requirement2;
+            return 0;
+        }
+
+        private static int GetResidentRequirement(ImmaterialResourceManager.Resource resource, ref Citizen citizen) {
+            switch (resource) {
+                case ImmaterialResourceManager.Resource.HealthCare:
+                    return Citizen.GetHealthCareRequirement(Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age));
+                case ImmaterialResourceManager.Resource.FireDepartment:
+                    return Citizen.GetFireDepartmentRequirement(Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age));
+                case ImmaterialResourceManager.Resource.PoliceDepartment:
+                    return Citizen.GetPoliceDepartmentRequirement(Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age));
+                case ImmaterialResourceManager.Resource.EducationElementary:
+                    Citizen.AgePhase agePhase1 = Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age);
+                    if (agePhase1 < Citizen.AgePhase.Teen0)
+                        return Citizen.GetEducationRequirement(agePhase1);
+                    return 0;
+                case ImmaterialResourceManager.Resource.EducationHighSchool:
+                    Citizen.AgePhase agePhase2 = Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age);
+                    if (agePhase2 >= Citizen.AgePhase.Teen0 && agePhase2 < Citizen.AgePhase.Young0)
+                        return Citizen.GetEducationRequirement(agePhase2);
+                    return 0;
+                case ImmaterialResourceManager.Resource.EducationUniversity:
+                    Citizen.AgePhase agePhase3 = Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age);
+                    if (agePhase3 >= Citizen.AgePhase.Young0)
+                        return Citizen.GetEducationRequirement(agePhase3);
+                    return 0;
+                case ImmaterialResourceManager.Resource.DeathCare:
+                    return Citizen.GetDeathCareRequirement(Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age));
+                case ImmaterialResourceManager.Resource.PublicTransport:
+                    return Citizen.GetTransportRequirement(Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age));
+                case ImmaterialResourceManager.Resource.Entertainment:
+                    return Citizen.GetEntertainmentRequirement(Citizen.GetAgePhase(citizen.EducationLevel, citizen.Age));
+                default:
+                    return 100;
+            }
+        }
+
+        public override float GetEventImpact(ushort buildingID, ref Building data, ImmaterialResourceManager.Resource resource, float amount) {
+            if ((data.m_flags & (Building.Flags.Abandoned | Building.Flags.BurnedDown)) != Building.Flags.None)
+                return 0.0f;
+            switch (resource) {
+                case ImmaterialResourceManager.Resource.HealthCare:
+                    int residentRequirement1 = NursingHomeAi.GetAverageResidentRequirement(buildingID, ref data, resource);
+                    int local1;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local1);
+                    int num1 = ImmaterialResourceManager.CalculateResourceEffect(local1, residentRequirement1, 500, 20, 40);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local1 + Mathf.RoundToInt(amount), residentRequirement1, 500, 20, 40) - num1) / 20f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.FireDepartment:
+                    int residentRequirement2 = NursingHomeAi.GetAverageResidentRequirement(buildingID, ref data, resource);
+                    int local2;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local2);
+                    int num2 = ImmaterialResourceManager.CalculateResourceEffect(local2, residentRequirement2, 500, 20, 40);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local2 + Mathf.RoundToInt(amount), residentRequirement2, 500, 20, 40) - num2) / 20f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.PoliceDepartment:
+                    int residentRequirement3 = NursingHomeAi.GetAverageResidentRequirement(buildingID, ref data, resource);
+                    int local3;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local3);
+                    int num3 = ImmaterialResourceManager.CalculateResourceEffect(local3, residentRequirement3, 500, 20, 40);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local3 + Mathf.RoundToInt(amount), residentRequirement3, 500, 20, 40) - num3) / 20f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.EducationElementary:
+                case ImmaterialResourceManager.Resource.EducationHighSchool:
+                case ImmaterialResourceManager.Resource.EducationUniversity:
+                    int residentRequirement4 = NursingHomeAi.GetAverageResidentRequirement(buildingID, ref data, resource);
+                    int local4;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local4);
+                    int num4 = ImmaterialResourceManager.CalculateResourceEffect(local4, residentRequirement4, 500, 20, 40);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local4 + Mathf.RoundToInt(amount), residentRequirement4, 500, 20, 40) - num4) / 20f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.DeathCare:
+                    int residentRequirement5 = NursingHomeAi.GetAverageResidentRequirement(buildingID, ref data, resource);
+                    int local5;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local5);
+                    int num5 = ImmaterialResourceManager.CalculateResourceEffect(local5, residentRequirement5, 500, 10, 20);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local5 + Mathf.RoundToInt(amount), residentRequirement5, 500, 10, 20) - num5) / 20f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.PublicTransport:
+                    int residentRequirement6 = NursingHomeAi.GetAverageResidentRequirement(buildingID, ref data, resource);
+                    int local6;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local6);
+                    int num6 = ImmaterialResourceManager.CalculateResourceEffect(local6, residentRequirement6, 500, 20, 40);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local6 + Mathf.RoundToInt(amount), residentRequirement6, 500, 20, 40) - num6) / 20f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.NoisePollution:
+                    int local7;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local7);
+                    int num7 = local7 * 100 / (int) byte.MaxValue;
+                    return Mathf.Clamp((float) (Mathf.Clamp(local7 + Mathf.RoundToInt(amount), 0, (int) byte.MaxValue) * 100 / (int) byte.MaxValue - num7) / 50f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.Entertainment:
+                    int residentRequirement7 = NursingHomeAi.GetAverageResidentRequirement(buildingID, ref data, resource);
+                    int local8;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local8);
+                    int num8 = ImmaterialResourceManager.CalculateResourceEffect(local8, residentRequirement7, 500, 30, 60);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local8 + Mathf.RoundToInt(amount), residentRequirement7, 500, 30, 60) - num8) / 30f, -1f, 1f);
+                case ImmaterialResourceManager.Resource.Abandonment:
+                    int local9;
+                    Singleton<ImmaterialResourceManager>.instance.CheckLocalResource(resource, data.m_position, out local9);
+                    int num9 = ImmaterialResourceManager.CalculateResourceEffect(local9, 15, 50, 10, 20);
+                    return Mathf.Clamp((float) (ImmaterialResourceManager.CalculateResourceEffect(local9 + Mathf.RoundToInt(amount), 15, 50, 10, 20) - num9) / 50f, -1f, 1f);
+                default:
+                    return base.GetEventImpact(buildingID, ref data, resource, amount);
+            }
+        }
+
+        public override float GetEventImpact(ushort buildingID, ref Building data, NaturalResourceManager.Resource resource, float amount) {
+            if ((data.m_flags & (Building.Flags.Abandoned | Building.Flags.BurnedDown)) != Building.Flags.None)
+                return 0.0f;
+            if (resource != NaturalResourceManager.Resource.Pollution)
+                return base.GetEventImpact(buildingID, ref data, resource, amount);
+            byte groundPollution;
+            Singleton<NaturalResourceManager>.instance.CheckPollution(data.m_position, out groundPollution);
+            int num = (int) groundPollution * 100 / (int) byte.MaxValue;
+            return Mathf.Clamp((float) (Mathf.Clamp((int) groundPollution + Mathf.RoundToInt(amount), 0, (int) byte.MaxValue) * 100 / (int) byte.MaxValue - num) / 50f, -1f, 1f);
         }
 
         public void GetConsumptionRates(Randomizer randomizer, int productionRate, out int electricityConsumption, out int waterConsumption, out int sewageAccumulation, out int garbageAccumulation, out int incomeAccumulation) {
