@@ -1,6 +1,7 @@
 ﻿using System;
 using ColossalFramework.UI;
 using ICities;
+using UnityEngine;
 
 namespace SeniorCitizenCenterMod {
     public class PanelHelper : ThreadingExtensionBase {
@@ -10,6 +11,7 @@ namespace SeniorCitizenCenterMod {
 
         public const string INFO_PANEL_NAME = "CityServiceWorldInfoPanel";
         public const string STATS_PANEL_NAME = "StatsPanel";
+        public const string STATS_INFO_PANEL_NAME = "Info";
 
         bool initialized = false;
         private static bool replacedHealthcareGroupPanel = false;
@@ -22,10 +24,10 @@ namespace SeniorCitizenCenterMod {
         }
 
         private void handleBuildingInfoPanel() {
-            UIComponent comp = UIView.library.Get(INFO_PANEL_NAME);
+            UIComponent infoPanel = UIView.library.Get(INFO_PANEL_NAME);
             if (!this.initialized) {
                 // Make sure the component is loaded before attempting initilization 
-                if (comp == null) {
+                if (infoPanel == null) {
                     Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Can't Inilitize yet because the component is still null");
                     return;
                 }
@@ -34,11 +36,22 @@ namespace SeniorCitizenCenterMod {
                 Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Attempting Initilization");
 
                 // Init the original panel height
-                this.originalPanelHeight = comp.height;
+                this.originalPanelHeight = infoPanel.height;
                 Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Original Panel Height Detected: {0}", this.originalPanelHeight);
 
                 // Ensure the original height is > 1 to consider this initilized
                 if (this.originalPanelHeight > 1) {
+                    // Also set the Stats Panel to a perminently larger and higher configuration
+                    UIComponent statsPanel = infoPanel.Find(STATS_PANEL_NAME);
+                    if (statsPanel.height < 124) {
+                        statsPanel.height = 125f;
+                        statsPanel.Find(STATS_INFO_PANEL_NAME).height = 120f;
+
+                        Vector3 position = ((UIPanel) statsPanel).position;
+                        position.y = position.y + 40;
+                        ((UIPanel) statsPanel).position = position;
+                    }
+
                     Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Done Initilizing");
                     this.initialized = true;
                 }
@@ -46,9 +59,9 @@ namespace SeniorCitizenCenterMod {
             }
 
             // Check to see if the panel height should be reset
-            if (comp != null && !comp.isVisible && Math.Abs(this.originalPanelHeight - comp.height) > 1) {
-                comp.height = this.originalPanelHeight;
-                Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Reset panel height back to: {0}", comp.height);
+            if (infoPanel != null && !infoPanel.isVisible && Math.Abs(this.originalPanelHeight - infoPanel.height) > 1) {
+                infoPanel.height = this.originalPanelHeight;
+                Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Reset panel height back to: {0}", infoPanel.height);
             }
         }
 

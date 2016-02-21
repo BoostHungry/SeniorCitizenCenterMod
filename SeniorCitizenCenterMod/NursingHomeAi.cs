@@ -768,15 +768,10 @@ namespace SeniorCitizenCenterMod {
             
             // Make the panel a little bit bigger to support the stats
             UIComponent infoPanel = UIView.library.Get(PanelHelper.INFO_PANEL_NAME);
-            if (infoPanel.height < 339f) {
-                infoPanel.height = 340f;
+            if (infoPanel.height < 349f) {
+                infoPanel.height = 350;
             }
 
-            UIComponent statsPanel = infoPanel.Find(PanelHelper.STATS_PANEL_NAME);
-            if (statsPanel.height < 124f) {
-                statsPanel.height = 125f;
-            }
-            
             // Get Worker Data
             Citizen.BehaviourData workerBehaviourData = new Citizen.BehaviourData();
             int aliveWorkerCount = 0;
