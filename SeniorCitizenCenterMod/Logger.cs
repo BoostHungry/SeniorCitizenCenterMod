@@ -7,6 +7,7 @@ namespace SeniorCitizenCenterMod {
 
         public static readonly bool LOG_OPTIONS = true;
         public static readonly bool LOG_CAPACITY_MANAGEMENT = true;
+        public static readonly bool LOG_INCOME = false;
 
         public static void logInfo(bool shouldLog, string message, params object[] args) {
             if (shouldLog) {

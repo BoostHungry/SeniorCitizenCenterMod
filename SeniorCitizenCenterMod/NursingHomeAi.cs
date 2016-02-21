@@ -120,6 +120,85 @@ namespace SeniorCitizenCenterMod {
             subMode = InfoManager.SubInfoMode.DeathCare;
         }
 
+        public override int GetResourceRate(ushort buildingID, ref Building buildingData, EconomyManager.Resource resource) {
+            if (resource == EconomyManager.Resource.Maintenance) {
+                int amount = -((int) buildingData.m_productionRate * Singleton<EconomyManager>.instance.GetBudget(this.m_info.m_class) / 100 * (this.getTotalMaintenance(ref buildingData) / 100));
+                return amount;
+            }
+            return base.GetResourceRate(buildingID, ref buildingData, resource);
+        }
+
+        private int getTotalMaintenance(ref Building buildingData) {
+            return this.GetMaintenanceCost() + this.getCustomMaintenanceCost(ref buildingData);
+        } 
+
+        private int getCustomMaintenanceCost(ref Building buildingData) {
+            int originalAmount = -(this.m_maintenanceCost * 100);
+
+            SeniorCitizenCenterMod mod = SeniorCitizenCenterMod.getInstance();
+            if (mod == null) {
+                return 0;
+            }
+
+            OptionsManager optionsManager = mod.getOptionsManager();
+            if (optionsManager == null) {
+                return 0;
+            }
+
+            int numResidents;
+            int numRoomsOccupied;
+            this.getOccupancyDetails(ref buildingData, out numResidents, out numRoomsOccupied);
+            float capacityModifier = (float) numRoomsOccupied / (float) this.getModifiedCapacity();
+            int modifiedAmount = (int) ((float) originalAmount * capacityModifier);
+
+            int amount = 0;
+            switch (optionsManager.getIncomeModifier()) {
+                case OptionsManager.IncomeValues.FULL_MAINTENANCE:
+                    return 0;
+                case OptionsManager.IncomeValues.HALF_MAINTENANCE:
+                    amount = modifiedAmount / 2;
+                    break;
+                case OptionsManager.IncomeValues.NO_MAINTENANCE:
+                    amount = modifiedAmount;
+                    break;
+                case OptionsManager.IncomeValues.NORMAL_PROFIT:
+                    amount = modifiedAmount * 2;
+                    break;
+                case OptionsManager.IncomeValues.DOUBLE_DOUBLE:
+                    amount = -originalAmount + (modifiedAmount * 4);
+                    break;
+                case OptionsManager.IncomeValues.DOUBLE_PROFIT:
+                    amount = modifiedAmount * 3;
+                    break;
+            }
+
+            if(amount == 0) {
+                return 0;
+            }
+            
+            Singleton<EconomyManager>.instance.m_EconomyWrapper.OnGetMaintenanceCost(ref amount, this.m_info.m_class.m_service, this.m_info.m_class.m_subService, this.m_info.m_class.m_level);
+            Logger.logInfo(Logger.LOG_INCOME, "getCustomMaintenanceCost - building: {0} - calculated maintenance amount: {1}", buildingData.m_buildIndex, amount);
+
+            return amount;
+        }
+
+        public void handleAdditionalMaintenanceCost(ref Building buildingData) {
+            int amount = this.getCustomMaintenanceCost(ref buildingData);
+            if (amount == 0) {
+                return;
+            }
+
+            int productionRate = (int) buildingData.m_productionRate;
+            int budget = Singleton<EconomyManager>.instance.GetBudget(this.m_info.m_class);
+            amount = amount / 100;
+            amount = productionRate * budget / 100 * amount / 100;
+            Logger.logInfo(Logger.LOG_INCOME, "getCustomMaintenanceCost - building: {0} - adjusted maintenance amount: {1}", buildingData.m_buildIndex, amount);
+
+            if ((buildingData.m_flags & Building.Flags.Original) == Building.Flags.None && amount != 0) {
+                int result = Singleton<EconomyManager>.instance.FetchResource(EconomyManager.Resource.Maintenance, amount, this.m_info.m_class);
+            }
+        }
+
         protected override void ProduceGoods(ushort buildingId, ref Building buildingData, ref Building.Frame frameData, int productionRate, ref Citizen.BehaviourData behaviour, int aliveWorkerCount, int totalWorkerCount, int workPlaceCount, int aliveVisitorCount, int totalVisitorCount, int visitPlaceCount) {
             base.ProduceGoods(buildingId, ref buildingData, ref frameData, productionRate, ref behaviour, aliveWorkerCount, totalWorkerCount, workPlaceCount, aliveVisitorCount, totalVisitorCount, visitPlaceCount);
 
@@ -460,6 +539,9 @@ namespace SeniorCitizenCenterMod {
             
             districtManager.m_districts.m_buffer[(int) district].AddResidentialData(ref behaviour, aliveCount, health, happiness, crimeRate, homeCount, aliveHomeCount, emptyHomeCount, (int) this.m_info.m_class.m_level, modifiedElectricityConsumption, heatingConsumption, waterConsumption, modifiedSewageAccumulation, garbageAccumulation, modifiedIncomeAccumulation, Mathf.Min(100, (int) buildingData.m_garbageBuffer / 50), (int) buildingData.m_waterPollution * 100 / (int) byte.MaxValue, buildingData.SubCultureType);
 
+            // Handle custom maintenance in addition to the standard maintenance handled in the base class
+            this.handleAdditionalMaintenanceCost(ref buildingData);
+
             base.SimulationStepActive(buildingID, ref buildingData, ref frameData);
             this.HandleFire(buildingID, ref buildingData, ref frameData, policies);
         }
@@ -737,39 +819,31 @@ namespace SeniorCitizenCenterMod {
         }
         
         public override string GetLocalizedStats(ushort buildingId, ref Building data) {
-            CitizenManager instance = Singleton<CitizenManager>.instance;
-            uint citizenUnitIndex = data.m_citizenUnits;
-            int numResidents = 0;
-            int numRoomsOccupied = 0;
-            int counter = 0;
+            int numResidents;
+            int numRoomsOccupied;
+            this.getOccupancyDetails(ref data, out numResidents, out numRoomsOccupied);
 
-            // Calculate number of occupied rooms and total number of residents
-            while ((int) citizenUnitIndex != 0) {
-                uint nextCitizenUnitIndex = instance.m_units.m_buffer[citizenUnitIndex].m_nextUnit;
-                if ((instance.m_units.m_buffer[citizenUnitIndex].m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
-                    bool occupied = false;
-                    for (int index = 0; index < 5; ++index) {
-                        uint citizenId = instance.m_units.m_buffer[citizenUnitIndex].GetCitizen(index);
-                        if (citizenId != 0) {
-                            occupied = true;
-                            numResidents++;
-                        }
-                    }
-                    if (occupied) {
-                        numRoomsOccupied++;
-                    }
-                }
-                citizenUnitIndex = nextCitizenUnitIndex;
-                if (++counter > 524288) {
-                    CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
-                    break;
-                }
-            }
-            
             // Make the panel a little bit bigger to support the stats
             UIComponent infoPanel = UIView.library.Get(PanelHelper.INFO_PANEL_NAME);
             if (infoPanel.height < 349f) {
                 infoPanel.height = 350;
+            }
+
+            // Update the Upkeep Stats with custom value
+            int maintenance = this.GetResourceRate(buildingId, ref data, EconomyManager.Resource.Maintenance);
+            
+            UIComponent infoGroupPanel = infoPanel.Find(PanelHelper.INFO_GROUP_PANEL_NAME);
+            if(infoGroupPanel != null) {
+                UILabel upkeepLabel = infoGroupPanel.Find<UILabel>(PanelHelper.UPKEEP_LABEL_NAME);
+                if(upkeepLabel != null) {
+                    if (maintenance > 0) {
+                        String upkeepText = LocaleFormatter.FormatUpkeep(maintenance, false);
+                        upkeepLabel.text = upkeepText.Replace("Upkeep", "Profit");
+                        upkeepLabel.textColor = Color.green;
+                    } else {
+                        upkeepLabel.textColor = PanelHelper.originalUpkeepColor;
+                    }
+                }
             }
 
             // Get Worker Data
@@ -796,6 +870,37 @@ namespace SeniorCitizenCenterMod {
             stringBuilder.Append(Environment.NewLine);
             stringBuilder.Append(string.Format("Number of Residents: {0}", numResidents));
             return stringBuilder.ToString();
+        }
+
+        private void getOccupancyDetails(ref Building data, out int numResidents, out int numRoomsOccupied) {
+            CitizenManager citizenManager = Singleton<CitizenManager>.instance;
+            uint citizenUnitIndex = data.m_citizenUnits;
+            numResidents = 0;
+            numRoomsOccupied = 0;
+            int counter = 0;
+
+            // Calculate number of occupied rooms and total number of residents
+            while ((int) citizenUnitIndex != 0) {
+                uint nextCitizenUnitIndex = citizenManager.m_units.m_buffer[citizenUnitIndex].m_nextUnit;
+                if ((citizenManager.m_units.m_buffer[citizenUnitIndex].m_flags & CitizenUnit.Flags.Home) != CitizenUnit.Flags.None) {
+                    bool occupied = false;
+                    for (int index = 0; index < 5; ++index) {
+                        uint citizenId = citizenManager.m_units.m_buffer[citizenUnitIndex].GetCitizen(index);
+                        if (citizenId != 0) {
+                            occupied = true;
+                            numResidents++;
+                        }
+                    }
+                    if (occupied) {
+                        numRoomsOccupied++;
+                    }
+                }
+                citizenUnitIndex = nextCitizenUnitIndex;
+                if (++counter > 524288) {
+                    CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
+                    break;
+                }
+            }
         }
 
         public void updateCapacity(float newCapacityModifier) {
