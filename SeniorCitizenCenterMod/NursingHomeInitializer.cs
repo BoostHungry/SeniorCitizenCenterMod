@@ -136,7 +136,9 @@ namespace SeniorCitizenCenterMod {
         }
 
         private IEnumerator initHealthcareMenu() {
-            while (!Singleton<LoadingManager>.instance.m_loadingComplete) {
+            // Need to continue beyond loading complete now
+            int i = 0;
+            while (!Singleton<LoadingManager>.instance.m_loadingComplete || i++ < 25) {
                 if (PanelHelper.initCustomHealthcareGroupPanel()) {
                     break;
                 }
