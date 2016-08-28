@@ -317,43 +317,6 @@ namespace SeniorCitizenCenterMod {
 
             // No clue what these are for, setting some policies at the disctrict level?
             districtManager.m_districts.m_buffer[(int) district].m_cityPlanningPoliciesEffect |= cityPlanning & (DistrictPolicies.CityPlanning.HighTechHousing | DistrictPolicies.CityPlanning.HeavyTrafficBan | DistrictPolicies.CityPlanning.EncourageBiking | DistrictPolicies.CityPlanning.BikeBan | DistrictPolicies.CityPlanning.OldTown | DistrictPolicies.CityPlanning.AntiSlip);
-            districtManager.m_districts.m_buffer[(int) district].m_specialPoliciesEffect |= special & (DistrictPolicies.Special.ProHippie | DistrictPolicies.Special.ProHipster | DistrictPolicies.Special.ProRedneck | DistrictPolicies.Special.ProGangsta | DistrictPolicies.Special.AntiHippie | DistrictPolicies.Special.AntiHipster | DistrictPolicies.Special.AntiRedneck | DistrictPolicies.Special.AntiGangsta | DistrictPolicies.Special.ComeOneComeAll | DistrictPolicies.Special.WeAreTheNorm);
-
-            // Handle Sub Culture -- Not really sure why only when ProHippie is "loaded"
-            if (districtManager.IsPolicyLoaded(DistrictPolicies.Policies.ProHippie)) {
-                int hippieValue = 0;
-                int hipsterValue = 0;
-                int redneckValue = 0;
-                int gangstaValue = 0;
-                if ((special & (DistrictPolicies.Special.ProHippie | DistrictPolicies.Special.ComeOneComeAll)) != DistrictPolicies.Special.None)
-                    hippieValue += 100;
-                if ((special & (DistrictPolicies.Special.AntiHippie | DistrictPolicies.Special.WeAreTheNorm)) != DistrictPolicies.Special.None)
-                    hippieValue -= 100;
-                if ((special & (DistrictPolicies.Special.ProHipster | DistrictPolicies.Special.ComeOneComeAll)) != DistrictPolicies.Special.None)
-                    hipsterValue += 100;
-                if ((special & (DistrictPolicies.Special.AntiHipster | DistrictPolicies.Special.WeAreTheNorm)) != DistrictPolicies.Special.None)
-                    hipsterValue -= 100;
-                if ((special & (DistrictPolicies.Special.ProRedneck | DistrictPolicies.Special.ComeOneComeAll)) != DistrictPolicies.Special.None)
-                    redneckValue += 100;
-                if ((special & (DistrictPolicies.Special.AntiRedneck | DistrictPolicies.Special.WeAreTheNorm)) != DistrictPolicies.Special.None)
-                    redneckValue -= 100;
-                if ((special & (DistrictPolicies.Special.ProGangsta | DistrictPolicies.Special.ComeOneComeAll)) != DistrictPolicies.Special.None)
-                    gangstaValue += 100;
-                if ((special & (DistrictPolicies.Special.AntiGangsta | DistrictPolicies.Special.WeAreTheNorm)) != DistrictPolicies.Special.None)
-                    gangstaValue -= 100;
-                if (hippieValue < 0)
-                    hippieValue = 0;
-                if (hipsterValue < 0)
-                    hipsterValue = 0;
-                if (redneckValue < 0)
-                    redneckValue = 0;
-                if (gangstaValue < 0)
-                    gangstaValue = 0;
-                int combinedSubCultureValue = Mathf.Max(100, hippieValue + hipsterValue + redneckValue + gangstaValue);
-                int modifiedSubCultureValue = new Randomizer((int) buildingID << 16).Int32((uint) combinedSubCultureValue);
-                buildingData.SubCultureType = modifiedSubCultureValue >= hippieValue ? (modifiedSubCultureValue >= hippieValue + hipsterValue ? (modifiedSubCultureValue >= hippieValue + hipsterValue + redneckValue ? (modifiedSubCultureValue >= hippieValue + hipsterValue + redneckValue + gangstaValue ? Citizen.SubCulture.Generic : Citizen.SubCulture.Gangsta) : Citizen.SubCulture.Redneck) : Citizen.SubCulture.Hipster) : Citizen.SubCulture.Hippie;
-                Logger.logInfo(LOG_SIMULATION, "NursingHomeAi.SimulationStepActive -- SubCultureType: {0}", buildingData.SubCultureType);
-            }
 
             // Handle Consumptions
             int electricityConsumption;
