@@ -2,6 +2,7 @@
 using System.Threading;
 using ColossalFramework;
 using ColossalFramework.UI;
+using System.Collections.Generic;
 
 namespace SeniorCitizenCenterMod {
     public class CustomHealthcareGroupPanel : HealthcareGroupPanel {
@@ -15,6 +16,7 @@ namespace SeniorCitizenCenterMod {
         private static readonly string NURSING_HOME_NAME = "NursingHome";
         private static readonly string NURSING_HOME_COMPONENT_NAME = "NursingHomeDefault";
 
+        private int iteration = 1;
         private bool hasStartedInit = false;
         private bool replacedHealthcarePanel = false;
         private bool replacedNursingHomeComponent = false;
@@ -29,7 +31,7 @@ namespace SeniorCitizenCenterMod {
         }
 
         public bool initNursingHomes() {
-            Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes");
+            Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Starting Iteration: {0}", iteration++);
 
             /*
              * Multi-step initilization process, perform each step one at a time and wait for it to completely finish before moving on.
@@ -41,7 +43,7 @@ namespace SeniorCitizenCenterMod {
                 this.internalRefreshPanel(false);
                 this.hasStartedInit = true;
             }
-            
+
             // 1) Check the Healthcare Component and replace the Panel with a custom one that will exclude Nursing Homes
             UIComponent healthCareComponent = this.m_Strip.Find(HEALTHCARE_COMPONENT_NAME);
             GeneratedScrollPanel healthCarePanel = this.m_Strip.GetComponentInContainer(healthCareComponent, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
@@ -67,7 +69,23 @@ namespace SeniorCitizenCenterMod {
                 return false;
             }
 
-            // 2) Check the Nursing Home Component and create it if it's not present
+            // 2) Sometimes there are multiple panels present for some reason.  Continually destroy all legacy panels until init is complete
+            Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Checking for duplicates");
+            List<UIComponent> legacyComps = new List<UIComponent>();
+            foreach (UIComponent comp in this.m_Strip.components) {
+                if (comp.name == HEALTHCARE_COMPONENT_NAME) {
+                    GeneratedScrollPanel panel = this.m_Strip.GetComponentInContainer(comp, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
+                    if (!(panel is CustomHealthcarePanel)) {
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Found duplicate - Destroying: {0}", comp);
+                        Destroy(panel);
+                        Destroy(comp);
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Bailing after destroying an unexpected panel to allow everything to settle");
+                        return false;
+                    }
+                }
+            }
+
+            // 3) Check the Nursing Home Component and create it if it's not present
             UIComponent nursingHomeComponent = this.m_Strip.Find(NURSING_HOME_COMPONENT_NAME);
             if (nursingHomeComponent == null) {
                 // Check to make sure this step is only done once, if attempting more than once, then just bail to give the process more time to finish
@@ -86,7 +104,7 @@ namespace SeniorCitizenCenterMod {
                 return false;
             }
 
-            // 3) Check the Nursing Home Panel and create it if it's not present
+            // 4) Check the Nursing Home Panel and create it if it's not present
             GeneratedScrollPanel nursingHomePanel = this.m_Strip.GetComponentInContainer(nursingHomeComponent, typeof(NursingHomePanel)) as GeneratedScrollPanel;
             if (nursingHomePanel == null) {
                 // Check to make sure this step is only done once, if attempting more than once, then just bail to give the process more time to finish
@@ -114,14 +132,23 @@ namespace SeniorCitizenCenterMod {
                 }
                 return false;
             }
-            
+
             // Remove all children from the Healthcare Panel so it can be repopulated by the new panel logic -- Note: May take more than one iteration to remove them all
             if (healthCarePanel.childComponents.Count > 0) {
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Removing {0} components from the healthCarePanel", healthCarePanel.childComponents.Count);
                 ((CustomHealthcarePanel) healthCarePanel).removeAllChildren();
                 return false;
             }
-            
+
+            // Remove all children from the Healthcare Panel so it can be repopulated by the new panel logic -- Note: May take more than one iteration to remove them all
+            if (nursingHomePanel.childComponents.Count > 0) {
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Removing {0} components from the nursingHomePanel", nursingHomePanel.childComponents.Count);
+                ((NursingHomePanel) nursingHomePanel).removeAllChildren();
+                return false;
+            }
+
             // Before finishing, refresh the panel
+            Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Refreshing panels to add back components with the new logic");
             this.RefreshPanel();
 
             Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Done Initing");
