@@ -24,6 +24,7 @@ namespace SeniorCitizenCenterMod {
         private int numTimesSearchedForMedicalClinic = 0;
 
         private bool initialized;
+        private int numAttempts = 0;
         private int loadedLevel = -1;
 
         private void Awake() {
@@ -51,7 +52,7 @@ namespace SeniorCitizenCenterMod {
         }
 
         private void Update() {
-            if (!this.initialized) {
+            if (!this.initialized && this.loadedLevel != -1) {
                 // Still need initilization, check to see if already attempting initilization
                 // Note: Not sure if it's possible for this method to be called more than once at a time, but locking just in case
                 if (Interlocked.CompareExchange(ref this.attemptingInitialization, 1, 0) == 0) {
@@ -61,8 +62,8 @@ namespace SeniorCitizenCenterMod {
         }
 
         private void attemptInitialization() {
-            // Make sure not attempting initilization after loading has already completed -- This means the mod may not function properly, but it won't waste resources continuing to try
-            if (Singleton<LoadingManager>.instance.m_loadingComplete) {
+            // Make sure not attempting initilization too many times -- This means the mod may not function properly, but it won't waste resources continuing to try
+            if (this.numAttempts++ >= 20) {
                 Logger.logError("NursingHomeInitializer.attemptInitialization -- *** NURSING HOMES FUNCTIONALITY DID NOT INITLIZIE PRIOR TO GAME LOADING -- THE SENIOR CITIZEN CENTER MOD MAY NOT FUNCTION PROPERLY ***");
                 // Set initilized so it won't keep trying
                 this.setInitialized();
@@ -136,6 +137,7 @@ namespace SeniorCitizenCenterMod {
         }
 
         private IEnumerator initHealthcareMenu() {
+            Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization -- initHealthcareMenu");
             // Need to continue beyond loading complete now
             int i = 0;
             while (!Singleton<LoadingManager>.instance.m_loadingComplete || i++ < 25) {

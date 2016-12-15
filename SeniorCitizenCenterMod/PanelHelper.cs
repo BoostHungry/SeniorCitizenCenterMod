@@ -110,6 +110,7 @@ namespace SeniorCitizenCenterMod {
         }
 
         public static bool initCustomHealthcareGroupPanel() {
+            Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel");
 
             // Get the Tab Strip, but fetching it before it's initlized can throw an exception
             UITabstrip strip = null;
