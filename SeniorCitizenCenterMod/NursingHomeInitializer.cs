@@ -149,14 +149,21 @@ namespace SeniorCitizenCenterMod {
         }
 
         private IEnumerator initNursingHomes(BuildingInfo buildingToCopyFrom) {
+            Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.initNursingHomes");
             float capcityModifier = SeniorCitizenCenterMod.getInstance().getOptionsManager().getCapacityModifier();
             uint index = 0U;
-            while (!Singleton<LoadingManager>.instance.m_loadingComplete) {
+            int i = 0;
+            while (!Singleton<LoadingManager>.instance.m_loadingComplete || i++ < 2) {
+                Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.initNursingHomes -- Iteration: {0}", i);
                 for (; PrefabCollection<BuildingInfo>.LoadedCount() > index; ++index) {
                     BuildingInfo buildingInfo = PrefabCollection<BuildingInfo>.GetLoaded(index);
+
+                    // Check for replacement of AI
                     if (buildingInfo != null && buildingInfo.name.EndsWith("_Data") && buildingInfo.name.Contains("NH123")) {
                         this.aiReplacementHelper.replaceBuildingAi<NursingHomeAi>(buildingInfo, buildingToCopyFrom);
                     }
+
+                    // Check for updating capacity - Existing NHs will be updated on-load, this will set the data used for placing new homes
                     if (this.loadedLevel == LOADED_LEVEL_GAME && buildingInfo != null && buildingInfo.m_buildingAI is NursingHomeAi) {
                         ((NursingHomeAi) buildingInfo.m_buildingAI).updateCapacity(capcityModifier);
                     }

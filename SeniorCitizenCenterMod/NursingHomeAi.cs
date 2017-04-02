@@ -1031,6 +1031,8 @@ namespace SeniorCitizenCenterMod {
             base.BuildingLoaded(buildingId, ref data, version);
 
             // Validate the capacity and adjust accordingly - but don't create new units, that will be done by EnsureCitizenUnits
+            float capcityModifier = SeniorCitizenCenterMod.getInstance().getOptionsManager().getCapacityModifier();
+            this.updateCapacity(capcityModifier);
             this.validateCapacity(buildingId, ref data, false);
 
             int workCount = this.numUneducatedWorkers + this.numEducatedWorkers + this.numWellEducatedWorkers + this.numHighlyEducatedWorkers;
