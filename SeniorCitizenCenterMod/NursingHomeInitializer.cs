@@ -87,8 +87,6 @@ namespace SeniorCitizenCenterMod {
             Singleton<LoadingManager>.instance.QueueLoadingAction(ActionWrapper(() => {
                 try {
                     if (this.loadedLevel == LOADED_LEVEL_GAME) {
-                        // Reset the PanelHelper and initilize the Healthcare Menu
-                        PanelHelper.reset();
                         this.StartCoroutine(this.initHealthcareMenu());
                     }
                     if (this.loadedLevel == LOADED_LEVEL_GAME || this.loadedLevel == LOADED_LEVEL_ASSET_EDITOR) {
@@ -138,13 +136,38 @@ namespace SeniorCitizenCenterMod {
 
         private IEnumerator initHealthcareMenu() {
             Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization -- initHealthcareMenu");
-            // Need to continue beyond loading complete now
-            int i = 0;
-            while (!Singleton<LoadingManager>.instance.m_loadingComplete || i++ < 25) {
-                if (PanelHelper.initCustomHealthcareGroupPanel()) {
-                    break;
+            int delay = 9999999;
+
+            // Run this endlessly every 600 frames (~10 seconds)
+            while (true) {
+                if(delay++ < 600) {
+                    yield return new WaitForEndOfFrame();
+                    continue;
                 }
-                yield return new WaitForEndOfFrame();
+
+                // Start a reset and reinit
+                Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization -- initHealthcareMenu -- Start");
+                Boolean failed = true;
+                PanelHelper.reset();
+
+                // Utilize 25 passes during initilization
+                for (int i = 0; i < 25; i++) {
+                    if (PanelHelper.initCustomHealthcareGroupPanel()) {
+                        failed = false;
+                        break;
+                    }
+                    yield return new WaitForEndOfFrame();
+                }
+
+                // Log an error message if the initilization took longer than 25 attempts
+                if(failed) {
+                    Logger.logError(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization -- initHealthcareMenu -- FAILED");
+                }
+
+                Logger.logInfo(LOG_INITIALIZER, "NursingHomeInitializer.attemptInitialization -- initHealthcareMenu -- End");
+
+                // Reset the delay to 0 and start waiting again
+                delay = 0;
             }
         }
 

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace SeniorCitizenCenterMod {
     public class PanelHelper : ThreadingExtensionBase {
 
-        public const bool LOG_CUSTOM_PANELS = false;
+        public const bool LOG_CUSTOM_PANELS = true;
         private const bool LOG_PANEL_HELPER = false;
 
         public const string INFO_PANEL_NAME = "CityServiceWorldInfoPanel";
@@ -17,6 +17,7 @@ namespace SeniorCitizenCenterMod {
 
         bool initialized = false;
         private static bool replacedHealthcareGroupPanel = false;
+        private static bool startedGroupPanelInit = false;
 
         float originalPanelHeight = 0.0f;
         public static Color32 originalUpkeepColor;
@@ -107,6 +108,7 @@ namespace SeniorCitizenCenterMod {
         public static void reset() {
             // Reset the values needed for panel initilization, not everything needs to be re-initilized, but the healthcare menu does
             replacedHealthcareGroupPanel = false;
+            startedGroupPanelInit = false;
         }
 
         public static bool initCustomHealthcareGroupPanel() {
@@ -156,6 +158,12 @@ namespace SeniorCitizenCenterMod {
 
             // Attempt initilization of the Custom Healthcare Group Panel -- Will take multiple attempts to completely initilize
             Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel -- Attempting initilization of the Custom Healthcare Group Panel");
+
+            if (!startedGroupPanelInit) {
+                startedGroupPanelInit = true;
+                ((CustomHealthcareGroupPanel) healthcareGroupPanel).resetInit();
+            }
+
             return ((CustomHealthcareGroupPanel) healthcareGroupPanel).initNursingHomes();
             
         }
