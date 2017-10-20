@@ -17,21 +17,24 @@ namespace SeniorCitizenCenterMod {
             base.RefreshPanel();
             this.PopulateAssets(GeneratedScrollPanel.AssetFilter.Building);
 
-            if (PanelHelper.LOG_CUSTOM_PANELS) {
-                foreach (UIComponent comp in this.childComponents) {
-                    Logger.logInfo("CustomHealthcarePanel.RefreshPanel -- Child Component Found: {0}", comp);
-                }
-            }
-
             Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomBasePanel.RefreshPanel Done");
         }
 
-        public void removeAllChildren() {
+        public bool removeAllChildren() {
+            bool didDestroy = false;
             foreach (UIComponent comp in this.childComponents) {
-                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomBasePanel.removeAllChildren -- Removing Child Comp: {0}", comp);
-                this.GetComponentInChildren<UIScrollablePanel>().RemoveUIComponent(comp);
-                Destroy(comp.gameObject);
+                if (comp != null && comp is UIButton) {
+                    object obj = ((UIButton) comp).objectUserData;
+                    if (obj != null && obj is BuildingInfo && !this.IsServiceValid((BuildingInfo) obj)) {
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcarePanel.RefreshPanel -- Destroying Child Component: {0}", comp);
+                        this.GetComponentInChildren<UIScrollablePanel>().RemoveUIComponent(comp);
+                        Destroy(comp.gameObject);
+                        didDestroy = true;
+                    }
+                }
             }
+
+            return didDestroy;
         }
 
         protected override void OnButtonClicked(UIComponent comp) {
