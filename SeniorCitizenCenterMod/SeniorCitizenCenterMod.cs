@@ -63,7 +63,7 @@ namespace SeniorCitizenCenterMod {
         public override void OnLevelLoaded(LoadMode mode) {
             Logger.logInfo(LOG_BASE, "SeniorCitizenCenterMod Level Loaded: {0}", mode);
             base.OnLevelLoaded(mode);
-            if(mode == LoadMode.LoadGame) {
+            if(mode == LoadMode.LoadGame || mode == LoadMode.NewGame) {
                 this.nursingHomeInitializer?.OnLevelWasLoaded(NursingHomeInitializer.LOADED_LEVEL_GAME);
             } else if(mode == LoadMode.NewAsset || mode == LoadMode.LoadAsset) {
                 this.nursingHomeInitializer?.OnLevelWasLoaded(NursingHomeInitializer.LOADED_LEVEL_ASSET_EDITOR);

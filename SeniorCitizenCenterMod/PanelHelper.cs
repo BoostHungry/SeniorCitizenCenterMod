@@ -7,7 +7,7 @@ namespace SeniorCitizenCenterMod {
     public class PanelHelper : ThreadingExtensionBase {
 
         public const bool LOG_CUSTOM_PANELS = true;
-        private const bool LOG_PANEL_HELPER = false;
+        private const bool LOG_PANEL_HELPER = true;
 
         public const string INFO_PANEL_NAME = "CityServiceWorldInfoPanel";
         public const string STATS_PANEL_NAME = "StatsPanel";

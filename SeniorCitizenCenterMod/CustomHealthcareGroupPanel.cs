@@ -84,38 +84,43 @@ namespace SeniorCitizenCenterMod {
             this.shouldHideTab = SeniorCitizenCenterMod.getInstance().getOptionsManager().getHideTabSelectedValue();
             UIComponent healthCareMonumentComponent = this.m_Strip.Find(HEALTHCARE_MONUMENT_COMPONENT_NAME);
             GeneratedScrollPanel healthCareMonumentPanel = this.m_Strip.GetComponentInContainer(healthCareMonumentComponent, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
-            if (this.shouldHideTab) {
-                if(!this.replacedHealthcareMonumentPanel) {
-                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Destroying Healthcare Monument Panel due to options set");
-                    healthCareMonumentComponent.Hide();
-
-                    // Mark this step as complete and bail to ensure this step is allowed to finish
-                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Bailing after finishing destroying the Healthcare Monument Panel");
-                    this.replacedHealthcareMonumentPanel = true;
-                    return false;
-                }
+            if (healthCareMonumentComponent == null) {
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Ignoring the Healthcare Monument Panel because it was not found");
             } else {
-                if (!(healthCareMonumentPanel is CustomHealthcarePanel)) {
-                    // Check to make sure this step is only done once, if attempting more than once, then just bail to give the process more time to finish
-                    if (this.replacedHealthcareMonumentPanel) {
-                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Waiting for replacement of the Healthcare Monument Panel to complete");
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Checking on the Healthcare Monument Panel because it was found");
+                if (this.shouldHideTab) {
+                    if (!this.replacedHealthcareMonumentPanel) {
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Destroying Healthcare Monument Panel due to options set");
+                        healthCareMonumentComponent.Hide();
+
+                        // Mark this step as complete and bail to ensure this step is allowed to finish
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Bailing after finishing destroying the Healthcare Monument Panel");
+                        this.replacedHealthcareMonumentPanel = true;
                         return false;
                     }
+                } else {
+                    if (!(healthCareMonumentPanel is CustomHealthcarePanel)) {
+                        // Check to make sure this step is only done once, if attempting more than once, then just bail to give the process more time to finish
+                        if (this.replacedHealthcareMonumentPanel) {
+                            Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Waiting for replacement of the Healthcare Monument Panel to complete");
+                            return false;
+                        }
 
-                    // Destroy the existing component
-                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Destroying existing Healthcare Monument Panel: {0}", healthCareMonumentPanel);
-                    Destroy(healthCareMonumentPanel);
+                        // Destroy the existing component
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Destroying existing Healthcare Monument Panel: {0}", healthCareMonumentPanel);
+                        Destroy(healthCareMonumentPanel);
 
-                    // Set the new component
-                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Creating new Custom Healthcare Monument Panel");
-                    UIComponent healthcarePanelContainer = this.m_Strip.tabPages.components[healthCareMonumentComponent.zOrder];
-                    healthcarePanelContainer.gameObject.AddComponent<CustomHealthcarePanel>();
-                    
+                        // Set the new component
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Creating new Custom Healthcare Monument Panel");
+                        UIComponent healthcarePanelContainer = this.m_Strip.tabPages.components[healthCareMonumentComponent.zOrder];
+                        healthcarePanelContainer.gameObject.AddComponent<CustomHealthcarePanel>();
 
-                    // Mark this step as complete and bail to ensure this step is allowed to finish
-                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Bailing after finishing setting the Custom Healthcare Monument Panel");
-                    this.replacedHealthcareMonumentPanel = true;
-                    return false;
+
+                        // Mark this step as complete and bail to ensure this step is allowed to finish
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Bailing after finishing setting the Custom Healthcare Monument Panel");
+                        this.replacedHealthcareMonumentPanel = true;
+                        return false;
+                    }
                 }
             }
 
