@@ -87,7 +87,7 @@ namespace SeniorCitizenCenterMod {
             if (healthCareMonumentComponent == null) {
                 Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Ignoring the Healthcare Monument Panel because it was not found");
             } else {
-                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Checking on the Healthcare Monument Panel because it was found");
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Checking the Healthcare Monument Panel because it was found");
                 if (this.shouldHideTab) {
                     if (!this.replacedHealthcareMonumentPanel) {
                         Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Destroying Healthcare Monument Panel due to options set");
@@ -128,7 +128,7 @@ namespace SeniorCitizenCenterMod {
             if (healthCarePanel.category != "HealthcareDefault") {
                 healthCarePanel.category = "HealthcareDefault";
             }
-            if (!this.shouldHideTab) {
+            if (!this.shouldHideTab && healthCareMonumentPanel != null) {
                 if (healthCareMonumentPanel.category != "MonumentCategory3") {
                     healthCareMonumentPanel.category = "MonumentCategory3";
                 }
@@ -197,7 +197,7 @@ namespace SeniorCitizenCenterMod {
             }
 
             // Remove all children from the Healthcare Monument Panel (if not hidden) so it can be repopulated by the new panel logic -- Note: May take more than one iteration to remove them all
-            if (!this.shouldHideTab && healthCareMonumentPanel.childComponents.Count > 0 && ((CustomHealthcarePanel) healthCareMonumentPanel).removeAllChildren()) {
+            if (!this.shouldHideTab && healthCareMonumentPanel != null && healthCareMonumentPanel.childComponents.Count > 0 && ((CustomHealthcarePanel) healthCareMonumentPanel).removeAllChildren()) {
                 Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Attempted to removing unwanted components from the healthCareMonumentPanel");
                 return false;
             }
