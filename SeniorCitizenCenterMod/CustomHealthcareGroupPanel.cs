@@ -55,9 +55,24 @@ namespace SeniorCitizenCenterMod {
                 this.hasStartedInit = true;
             }
 
+            if (this.m_Strip == null) {
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- ERROR Null m_Strip");
+                return false;
+            }
+
             // 1.1) Check the Healthcare Component and replace the Panel with a custom one that will exclude Nursing Homes
             UIComponent healthCareComponent = this.m_Strip.Find(HEALTHCARE_COMPONENT_NAME);
+            if (healthCareComponent == null) {
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- ERROR Null healthCareComponent");
+                return false;
+            }
+
             GeneratedScrollPanel healthCarePanel = this.m_Strip.GetComponentInContainer(healthCareComponent, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
+            if (healthCarePanel == null) {
+                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- ERROR Null healthCarePanel");
+                return false;
+            }
+
             if (!(healthCarePanel is CustomHealthcarePanel)) {
                 // Check to make sure this step is only done once, if attempting more than once, then just bail to give the process more time to finish
                 if (this.replacedHealthcarePanel) {
@@ -82,8 +97,8 @@ namespace SeniorCitizenCenterMod {
 
             // 1.2) Check the Healthcare Mounument Component and either destroy or replace the Panel with a custom one that will exclude Nursing Homes
             this.shouldHideTab = SeniorCitizenCenterMod.getInstance().getOptionsManager().getHideTabSelectedValue();
+            Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Should Hide Tab: {0}", this.shouldHideTab);
             UIComponent healthCareMonumentComponent = this.m_Strip.Find(HEALTHCARE_MONUMENT_COMPONENT_NAME);
-            GeneratedScrollPanel healthCareMonumentPanel = this.m_Strip.GetComponentInContainer(healthCareMonumentComponent, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
             if (healthCareMonumentComponent == null) {
                 Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Ignoring the Healthcare Monument Panel because it was not found");
             } else {
@@ -99,7 +114,10 @@ namespace SeniorCitizenCenterMod {
                         return false;
                     }
                 } else {
-                    if (!(healthCareMonumentPanel is CustomHealthcarePanel)) {
+                    GeneratedScrollPanel healthCareMonumentPanel = this.m_Strip.GetComponentInContainer(healthCareMonumentComponent, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
+                    if (healthCareMonumentPanel == null) {
+                        Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Null healthCareMonumentPanel - Skipping creation of a new one");
+                    } else if (!(healthCareMonumentPanel is CustomHealthcarePanel)) {
                         // Check to make sure this step is only done once, if attempting more than once, then just bail to give the process more time to finish
                         if (this.replacedHealthcareMonumentPanel) {
                             Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Waiting for replacement of the Healthcare Monument Panel to complete");
@@ -129,8 +147,13 @@ namespace SeniorCitizenCenterMod {
                 healthCarePanel.category = "HealthcareDefault";
             }
             if (!this.shouldHideTab) {
-                if (healthCareMonumentPanel.category != "MonumentCategory3") {
-                    healthCareMonumentPanel.category = "MonumentCategory3";
+                GeneratedScrollPanel healthCareMonumentPanel = this.m_Strip.GetComponentInContainer(healthCareMonumentComponent, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
+                if (healthCareMonumentPanel == null) {
+                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Null healthCareMonumentPanel - Skipping setting category");
+                } else {
+                    if (healthCareMonumentPanel.category != "MonumentCategory3") {
+                        healthCareMonumentPanel.category = "MonumentCategory3";
+                    }
                 }
             }
 
@@ -197,9 +220,14 @@ namespace SeniorCitizenCenterMod {
             }
 
             // Remove all children from the Healthcare Monument Panel (if not hidden) so it can be repopulated by the new panel logic -- Note: May take more than one iteration to remove them all
-            if (!this.shouldHideTab && healthCareMonumentPanel.childComponents.Count > 0 && ((CustomHealthcarePanel) healthCareMonumentPanel).removeAllChildren()) {
-                Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Attempted to removing unwanted components from the healthCareMonumentPanel");
-                return false;
+            if (!this.shouldHideTab) {
+                GeneratedScrollPanel healthCareMonumentPanel = this.m_Strip.GetComponentInContainer(healthCareMonumentComponent, typeof(GeneratedScrollPanel)) as GeneratedScrollPanel;
+                if (healthCareMonumentPanel == null) {
+                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Null healthCareMonumentPanel - Skipping removing children");
+                } else if (healthCareMonumentPanel.childComponents.Count > 0 && ((CustomHealthcarePanel) healthCareMonumentPanel).removeAllChildren()) {
+                    Logger.logInfo(PanelHelper.LOG_CUSTOM_PANELS, "CustomHealthcareGroupPanel.initNursingHomes -- Attempted to removing unwanted components from the healthCareMonumentPanel");
+                    return false;
+                }
             }
 
             // Remove all children from the Healthcare Panel so it can be repopulated by the new panel logic -- Note: May take more than one iteration to remove them all
