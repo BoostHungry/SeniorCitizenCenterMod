@@ -10,7 +10,7 @@ namespace SeniorCitizenCenterMod {
         private const bool LOG_PANEL_HELPER = true;
 
         public const string INFO_PANEL_NAME = "CityServiceWorldInfoPanel";
-        public const string STATS_PANEL_NAME = "StatsPanel";
+        public const string STATS_PANEL_NAME = "LayoutPanel";
         public const string STATS_INFO_PANEL_NAME = "Info";
         public const string INFO_GROUP_PANEL_NAME = "InfoGroupPanel";
         public const string UPKEEP_LABEL_NAME = "Upkeep";
@@ -20,6 +20,9 @@ namespace SeniorCitizenCenterMod {
         private static bool startedGroupPanelInit = false;
 
         float originalPanelHeight = 0.0f;
+        float originalStatsPanelHeight = 0.0f;
+        float originalStatsPanelPosition = 0.0f;
+        float originalStatsInfoPanelHeight = 0.0f;
         public static Color32 originalUpkeepColor;
 
         public override void OnBeforeSimulationTick() {
@@ -44,43 +47,43 @@ namespace SeniorCitizenCenterMod {
 
                 // Ensure the original height is > 1 to consider this initilized
                 if (this.originalPanelHeight > 1) {
-                    
-                    // Set the Stats Panel to a perminently larger and higher configuration
+
+                    // Save the Stats Panel Height and location
                     UIComponent statsPanel = infoPanel.Find(STATS_PANEL_NAME);
-                    if(statsPanel == null) {
+                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsPanel: " + statsPanel);
+                    if (statsPanel == null) {
                         return;
                     }
 
-                    if (statsPanel.height < 124) {
-                        statsPanel.height = 125f;
+                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsPanel.height: " + statsPanel.height);
+                    originalStatsPanelHeight = statsPanel.height;
+                    originalStatsPanelPosition = ((UIPanel) statsPanel).position.y;
 
-                        Vector3 position = ((UIPanel) statsPanel).position;
-                        position.y = position.y + 40;
-                        ((UIPanel) statsPanel).position = position;
-                    }
-
-                    // Set the Stats Info panel to a perminently larger size
+                    // Save the Stats Info Panel Height
                     UIComponent statsInfoPanel = statsPanel.Find(STATS_INFO_PANEL_NAME);
-                    if(statsInfoPanel == null) {
+                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsInfoPanel: " + statsInfoPanel);
+                    if (statsInfoPanel == null) {
                         return;
                     }
 
-                    if (statsInfoPanel.height < 119) {
-                        statsInfoPanel.height = 120f;
-                    }
+                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsInfoPanel.height: " + statsInfoPanel.height);
+                    originalStatsInfoPanelHeight = statsInfoPanel.height;
 
                     // Get the original color of the Upkeep Label
                     UIComponent infoGroupPanel = infoPanel.Find(PanelHelper.INFO_GROUP_PANEL_NAME);
+                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: infoGroupPanel: " + infoGroupPanel);
                     if (infoGroupPanel == null) {
                         return;
                     }
 
                     UILabel upkeepLabel = infoGroupPanel.Find<UILabel>(PanelHelper.UPKEEP_LABEL_NAME);
+                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: upkeepLabel: " + upkeepLabel);
                     if (upkeepLabel == null) {
                         return;
                     }
 
                     PanelHelper.originalUpkeepColor = upkeepLabel.textColor;
+                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: upkeepLabel.textColor: " + upkeepLabel.textColor);
 
                     Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Done Initilizing");
                     this.initialized = true;
@@ -92,6 +95,20 @@ namespace SeniorCitizenCenterMod {
             if (infoPanel != null && !infoPanel.isVisible && Math.Abs(this.originalPanelHeight - infoPanel.height) > 1) {
                 infoPanel.height = this.originalPanelHeight;
                 Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Reset panel height back to: {0}", infoPanel.height);
+
+                // Reset the other heights and positions
+                UIComponent statsPanel = infoPanel.Find(STATS_PANEL_NAME);
+                if (statsPanel != null) {
+                    statsPanel.height = originalStatsPanelHeight;
+                    Vector3 pos = statsPanel.position;
+                    pos.y = originalStatsPanelPosition;
+                    statsPanel.position = pos;
+
+                    UIComponent statsInfoPanel = statsPanel.Find(STATS_INFO_PANEL_NAME);
+                    if (statsInfoPanel != null) {
+                        statsInfoPanel.height = originalStatsInfoPanelHeight;
+                    }
+                }
 
                 // Also reset the Upkeep Color
                 UIComponent infoGroupPanel = infoPanel.Find(PanelHelper.INFO_GROUP_PANEL_NAME);

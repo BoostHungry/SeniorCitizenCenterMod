@@ -363,7 +363,9 @@ namespace SeniorCitizenCenterMod {
             Logger.logInfo(LOG_SIMULATION, "NursingHomeAi.SimulationStepActive -- modifiedIncomeAccumulation: {0}", modifiedIncomeAccumulation);
 
             if ((int) buildingData.m_fireIntensity == 0) {
-                int commonConsumptionValue = this.HandleCommonConsumption(buildingID, ref buildingData, ref frameData, ref modifiedElectricityConsumption, ref heatingConsumption, ref waterConsumption, ref modifiedSewageAccumulation, ref garbageAccumulation, policies);
+                int maxMail = 100;
+                int mailAccumulation = 1;
+                int commonConsumptionValue = this.HandleCommonConsumption(buildingID, ref buildingData, ref frameData, ref modifiedElectricityConsumption, ref heatingConsumption, ref waterConsumption, ref modifiedSewageAccumulation, ref garbageAccumulation, ref mailAccumulation, maxMail, policies);
 
                 // TODO: Possibly allow for income
                 //modifiedIncomeAccumulation = (modifiedIncomeAccumulation * commonConsumptionValue + 99) / 100;
@@ -792,6 +794,20 @@ namespace SeniorCitizenCenterMod {
                 infoPanel.height = 350;
             }
 
+            // Make the inner panels a bit bigger also 
+            UIComponent statsPanel = infoPanel.Find(PanelHelper.STATS_PANEL_NAME);
+            if (statsPanel != null && statsPanel.height < 124) {
+                statsPanel.height = 125;
+                Vector3 pos = statsPanel.position;
+                pos.y = pos.y + 40f;
+                statsPanel.position = pos;
+            }
+
+            UIComponent statsInfoPanel = statsPanel?.Find(PanelHelper.STATS_INFO_PANEL_NAME);
+            if (statsInfoPanel != null && statsInfoPanel.height < 123) {
+                statsInfoPanel.height = 124;
+            }
+
             // Update the Upkeep Stats with custom value
             int maintenance = this.GetResourceRate(buildingId, ref data, EconomyManager.Resource.Maintenance);
             
@@ -814,7 +830,7 @@ namespace SeniorCitizenCenterMod {
             int aliveWorkerCount = 0;
             int totalWorkerCount = 0;
             this.GetWorkBehaviour(buildingId, ref data, ref workerBehaviourData, ref aliveWorkerCount, ref totalWorkerCount);
-
+            
             // Build Stats
             // TODO: Localize!!!
             StringBuilder stringBuilder = new StringBuilder();
