@@ -794,20 +794,6 @@ namespace SeniorCitizenCenterMod {
                 infoPanel.height = 350;
             }
 
-            // Make the inner panels a bit bigger also 
-            UIComponent statsPanel = infoPanel.Find(PanelHelper.STATS_PANEL_NAME);
-            if (statsPanel != null && statsPanel.height < 124) {
-                statsPanel.height = 125;
-                Vector3 pos = statsPanel.position;
-                pos.y = pos.y + 40f;
-                statsPanel.position = pos;
-            }
-
-            UIComponent statsInfoPanel = statsPanel?.Find(PanelHelper.STATS_INFO_PANEL_NAME);
-            if (statsInfoPanel != null && statsInfoPanel.height < 123) {
-                statsInfoPanel.height = 124;
-            }
-
             // Update the Upkeep Stats with custom value
             int maintenance = this.GetResourceRate(buildingId, ref data, EconomyManager.Resource.Maintenance);
             

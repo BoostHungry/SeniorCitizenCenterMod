@@ -48,27 +48,6 @@ namespace SeniorCitizenCenterMod {
                 // Ensure the original height is > 1 to consider this initilized
                 if (this.originalPanelHeight > 1) {
 
-                    // Save the Stats Panel Height and location
-                    UIComponent statsPanel = infoPanel.Find(STATS_PANEL_NAME);
-                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsPanel: " + statsPanel);
-                    if (statsPanel == null) {
-                        return;
-                    }
-
-                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsPanel.height: " + statsPanel.height);
-                    originalStatsPanelHeight = statsPanel.height;
-                    originalStatsPanelPosition = ((UIPanel) statsPanel).position.y;
-
-                    // Save the Stats Info Panel Height
-                    UIComponent statsInfoPanel = statsPanel.Find(STATS_INFO_PANEL_NAME);
-                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsInfoPanel: " + statsInfoPanel);
-                    if (statsInfoPanel == null) {
-                        return;
-                    }
-
-                    Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: statsInfoPanel.height: " + statsInfoPanel.height);
-                    originalStatsInfoPanelHeight = statsInfoPanel.height;
-
                     // Get the original color of the Upkeep Label
                     UIComponent infoGroupPanel = infoPanel.Find(PanelHelper.INFO_GROUP_PANEL_NAME);
                     Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: infoGroupPanel: " + infoGroupPanel);
@@ -93,6 +72,8 @@ namespace SeniorCitizenCenterMod {
 
             // Check to see if the panel height should be reset
             if (infoPanel != null && !infoPanel.isVisible && Math.Abs(this.originalPanelHeight - infoPanel.height) > 1) {
+                Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Attempting to reset infoPanel height");
+                Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Current infoPanel height: {0}", infoPanel.height);
                 infoPanel.height = this.originalPanelHeight;
                 Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Reset panel height back to: {0}", infoPanel.height);
 
@@ -119,6 +100,23 @@ namespace SeniorCitizenCenterMod {
                         Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: Reset upkeep color back to: {0}", upkeepLabel.textColor);
                     }
                 }
+            }
+        }
+
+        private void printLevels(UIComponent comp, String prevLevels, int depth) {
+            if (comp == null) {
+                return;
+            }
+
+            String level = prevLevels + " -> " + comp.name;
+            Logger.logInfo(LOG_PANEL_HELPER, "PanelHelper.handleBuildingInfoPanel: components: {0}", level);
+
+            if (depth > 6) {
+                return;
+            }
+
+            foreach (UIComponent child in comp.components) {
+                printLevels(child, level, depth + 1);
             }
         }
 
