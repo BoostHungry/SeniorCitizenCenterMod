@@ -71,22 +71,6 @@ namespace SeniorCitizenCenterMod {
         }
 
         public void updateCapacity(float targetValue) {
-            try {
-                SeniorCitizenCenterMod seniorCitizenCenterMod = SeniorCitizenCenterMod.getInstance();
-                if (seniorCitizenCenterMod == null || seniorCitizenCenterMod.getNursingHomeInitializer() == null) {
-                    Logger.logInfo(Logger.LOG_OPTIONS, "OptionsManager.updateCapacity -- Skipping capacity update because a game is not loaded yet");
-                    return;
-                }
-
-                NursingHomeInitializer nursingHomeInitializer = SeniorCitizenCenterMod.getInstance().getNursingHomeInitializer();
-                if (nursingHomeInitializer.getLoadedLevel() != NursingHomeInitializer.LOADED_LEVEL_GAME) {
-                    Logger.logInfo(Logger.LOG_OPTIONS, "OptionsManager.updateCapacity -- Skipping capacity update because a game is not loaded yet");
-                    return;
-                }
-            } catch (Exception e) {
-                Logger.logError(Logger.LOG_OPTIONS, "OptionsManager.updateCapacity -- Skipping capacity update because a game is not loaded yet -- Exception: {0}", e.Message);
-            }
-
             Logger.logInfo(Logger.LOG_OPTIONS, "OptionsManager.updateCapacity -- Updating capacity with modifier: {0}", targetValue);
             for (uint index = 0; PrefabCollection<BuildingInfo>.LoadedCount() > index; ++index) {
                 BuildingInfo buildingInfo = PrefabCollection<BuildingInfo>.GetLoaded(index);

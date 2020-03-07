@@ -15,9 +15,7 @@ namespace SeniorCitizenCenterMod {
         public const string INFO_GROUP_PANEL_NAME = "InfoGroupPanel";
         public const string UPKEEP_LABEL_NAME = "Upkeep";
 
-        bool initialized = false;
-        private static bool replacedHealthcareGroupPanel = false;
-        private static bool startedGroupPanelInit = false;
+        private bool initialized = false;
 
         float originalPanelHeight = 0.0f;
         float originalStatsPanelHeight = 0.0f;
@@ -119,69 +117,5 @@ namespace SeniorCitizenCenterMod {
                 printLevels(child, level, depth + 1);
             }
         }
-
-        public static void reset() {
-            // Reset the values needed for panel initilization, not everything needs to be re-initilized, but the healthcare menu does
-            replacedHealthcareGroupPanel = false;
-            startedGroupPanelInit = false;
-        }
-
-        public static bool initCustomHealthcareGroupPanel() {
-            Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel");
-
-            // Get the Tab Strip, but fetching it before it's initlized can throw an exception
-            UITabstrip strip = null;
-            try {
-                strip = ToolsModifierControl.mainToolbar?.component as UITabstrip;
-            } catch {
-                // Do nothing
-            }
-
-            // Get the other needed components
-            UIComponent healthCare = strip?.Find(CustomHealthcareGroupPanel.HEALTHCARE_NAME);
-            UIComponent healthcarePanelComp = strip?.tabPages?.Find(CustomHealthcareGroupPanel.HEALTHCARE_PANEL_NAME);
-            HealthcareGroupPanel healthcareGroupPanel = healthcarePanelComp?.GetComponent<HealthcareGroupPanel>();
-
-            // Ensure the Healthcare Components are available before initilization
-            if (healthCare == null || healthcarePanelComp == null || healthcareGroupPanel == null || !healthCare.isActiveAndEnabled || !healthCare.isVisible) {
-                Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel -- Waiting to initilize Healthcare Menu because the components aren't ready");
-                return false;
-            }
-
-            // Can start initilization
-            Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel -- Initilizing Healthcare Menu");
-
-            // Check the Healthcare Group Panel and replace it with a Custom Healthcare Group Panel
-            if (!(healthcareGroupPanel is CustomHealthcareGroupPanel)) {
-                if (replacedHealthcareGroupPanel) {
-                    Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel -- Waiting to continue initilization of the Healthcare Menu because the Custom Panel isn't fully initilized yet");
-                    return false;
-                }
-
-                // Destroy the existing group panel
-                Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel -- Destroying the existing Healthcare Group Panel: {0}", healthcareGroupPanel);
-                UnityEngine.Object.Destroy(healthcareGroupPanel);
-
-                // Create a new custom group panel
-                Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel -- Creating the new Custom Healthcare Group Panel");
-                healthcarePanelComp.gameObject.AddComponent(typeof (CustomHealthcareGroupPanel));
-
-                // Mark this step as complete and bail to give this step a chance to complete
-                replacedHealthcareGroupPanel = true;
-                return false;
-            }
-
-            // Attempt initilization of the Custom Healthcare Group Panel -- Will take multiple attempts to completely initilize
-            Logger.logInfo(LOG_CUSTOM_PANELS, "PanelHelper.initCustomHealthcareGroupPanel -- Attempting initilization of the Custom Healthcare Group Panel");
-
-            if (!startedGroupPanelInit) {
-                startedGroupPanelInit = true;
-                ((CustomHealthcareGroupPanel) healthcareGroupPanel).resetInit();
-            }
-
-            return ((CustomHealthcareGroupPanel) healthcareGroupPanel).initNursingHomes();
-            
-        }
-        
     }
 }

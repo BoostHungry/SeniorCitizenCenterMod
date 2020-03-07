@@ -9,9 +9,12 @@ namespace SeniorCitizenCenterMod {
 
         private static SeniorCitizenCenterMod instance;
 
-        private GameObject nursingHomeInitializerObj;
         private NursingHomeInitializer nursingHomeInitializer;
-        private OptionsManager optionsManager = new OptionsManager();
+        private OptionsManager optionsManager;
+
+        public SeniorCitizenCenterMod() {
+            instance = this;
+        }
 
         public string Description {
             get {
@@ -23,6 +26,16 @@ namespace SeniorCitizenCenterMod {
             get {
                 return "SeniorCitizenCenterMod";
             }
+        }
+
+        public void OnEnabled() {
+            this.nursingHomeInitializer = new NursingHomeInitializer();
+            this.optionsManager = new OptionsManager();
+        }
+
+        public void OnDisabled() {
+            this.nursingHomeInitializer = null;
+            this.optionsManager = null;
         }
 
         public static SeniorCitizenCenterMod getInstance() {
@@ -42,19 +55,6 @@ namespace SeniorCitizenCenterMod {
             this.optionsManager.loadOptions();
         }
 
-        public override void OnCreated(ILoading loading) {
-            Logger.logInfo(LOG_BASE, "SeniorCitizenCenterMod Created");
-            instance = this;
-            base.OnCreated(loading);
-
-            if (this.nursingHomeInitializerObj != null) {
-                return;
-            }
-            
-            this.nursingHomeInitializerObj = new GameObject("SeniorCitizenCenterMod Nursing Homes");
-            this.nursingHomeInitializer = this.nursingHomeInitializerObj.AddComponent<NursingHomeInitializer>();
-        }
-
         public override void OnLevelUnloading() {
             base.OnLevelUnloading();
             this.nursingHomeInitializer?.OnLevelUnloading();
@@ -68,14 +68,8 @@ namespace SeniorCitizenCenterMod {
             } else if(mode == LoadMode.NewAsset || mode == LoadMode.LoadAsset) {
                 this.nursingHomeInitializer?.OnLevelWasLoaded(NursingHomeInitializer.LOADED_LEVEL_ASSET_EDITOR);
             }
-        }
 
-        public override void OnReleased() {
-            Logger.logInfo(LOG_BASE, "SeniorCitizenCenterMod Released");
-            base.OnReleased();
-            if (this.nursingHomeInitializerObj != null) {
-                UnityEngine.Object.Destroy(this.nursingHomeInitializerObj);
-            }
+            this.nursingHomeInitializer?.AttemptInitialization();
         }
 
         public byte[] LoadData(string id) {
