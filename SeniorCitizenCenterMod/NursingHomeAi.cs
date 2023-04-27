@@ -8,6 +8,7 @@ using ColossalFramework.Math;
 using ColossalFramework.UI;
 using UnityEngine;
 using System.Threading;
+using static InfoManager;
 
 namespace SeniorCitizenCenterMod {
     public class NursingHomeAi : PlayerBuildingAI {
@@ -45,7 +46,7 @@ namespace SeniorCitizenCenterMod {
         [CustomizableProperty("Quality (values: 0-5 including 0 and 5)")]
         public int quality = 2;
 
-        public override Color GetColor(ushort buildingId, ref Building data, InfoManager.InfoMode infoMode) {
+        public override Color GetColor(ushort buildingId, ref Building data, InfoManager.InfoMode infoMode, InfoManager.SubInfoMode subInfoMode) {
             // This is a copy from ResidentialBuildingAI
             InfoManager.InfoMode infoModeCopy = infoMode;
             switch (infoModeCopy) {
@@ -76,13 +77,12 @@ namespace SeniorCitizenCenterMod {
                         case InfoManager.InfoMode.Water:
                             if (!this.ShowConsumption(buildingId, ref data) || (int) data.m_citizenCount == 0)
                                 return Singleton<InfoManager>.instance.m_properties.m_neutralColor;
-                            InfoManager.SubInfoMode currentSubMode = Singleton<InfoManager>.instance.CurrentSubMode;
                             int num4;
                             int num5;
-                            if (currentSubMode == InfoManager.SubInfoMode.Default) {
+                            if (subInfoMode == InfoManager.SubInfoMode.Default) {
                                 num4 = (int) data.m_education1 * 100;
                                 num5 = (int) data.m_teens + (int) data.m_youngs + (int) data.m_adults + (int) data.m_seniors;
-                            } else if (currentSubMode == InfoManager.SubInfoMode.WaterPower) {
+                            } else if (subInfoMode == InfoManager.SubInfoMode.WaterPower) {
                                 num4 = (int) data.m_education2 * 100;
                                 num5 = (int) data.m_youngs + (int) data.m_adults + (int) data.m_seniors;
                             } else {
@@ -94,12 +94,12 @@ namespace SeniorCitizenCenterMod {
                             int num6 = Mathf.Clamp(num4, 0, 100);
                             return Color.Lerp(Singleton<InfoManager>.instance.m_properties.m_modeProperties[(int) infoMode].m_negativeColor, Singleton<InfoManager>.instance.m_properties.m_modeProperties[(int) infoMode].m_targetColor, (float) num6 * 0.01f);
                         default:
-                            return this.handleOtherColors(buildingId, ref data, infoMode);
+                            return this.handleOtherColors(buildingId, ref data, infoMode, subInfoMode);
                     }
             }
         }
 
-        private Color handleOtherColors(ushort buildingId, ref Building data, InfoManager.InfoMode infoMode) {
+        private Color handleOtherColors(ushort buildingId, ref Building data, InfoManager.InfoMode infoMode, InfoManager.SubInfoMode subInfoMode) {
             switch (infoMode) {
                 case InfoManager.InfoMode.Happiness:
                     if (this.ShowConsumption(buildingId, ref data)) {
@@ -109,9 +109,9 @@ namespace SeniorCitizenCenterMod {
                 case InfoManager.InfoMode.Garbage:
                     if (this.m_garbageAccumulation == 0)
                         return Singleton<InfoManager>.instance.m_properties.m_neutralColor;
-                    return base.GetColor(buildingId, ref data, infoMode);
+                    return base.GetColor(buildingId, ref data, infoMode, subInfoMode);
                 default:
-                    return base.GetColor(buildingId, ref data, infoMode);
+                    return base.GetColor(buildingId, ref data, infoMode, subInfoMode);
             }
         }
 
@@ -203,7 +203,7 @@ namespace SeniorCitizenCenterMod {
             base.ProduceGoods(buildingId, ref buildingData, ref frameData, productionRate, finalProductionRate, ref behaviour, aliveWorkerCount, totalWorkerCount, workPlaceCount, aliveVisitorCount, totalVisitorCount, visitPlaceCount);
 
             // Make sure there are no problems
-            if ((buildingData.m_problems & (Notification.Problem.MajorProblem | Notification.Problem.Electricity | Notification.Problem.ElectricityNotConnected | Notification.Problem.Fire | Notification.Problem.NoWorkers | Notification.Problem.Water | Notification.Problem.WaterNotConnected | Notification.Problem.RoadNotConnected | Notification.Problem.TurnedOff)) != Notification.Problem.None) {
+            if ((buildingData.m_problems & (Notification.Problem1.MajorProblem | Notification.Problem1.Electricity | Notification.Problem1.ElectricityNotConnected | Notification.Problem1.Fire | Notification.Problem1.NoWorkers | Notification.Problem1.Water | Notification.Problem1.WaterNotConnected | Notification.Problem1.RoadNotConnected | Notification.Problem1.TurnedOff)) != Notification.Problem1.None) {
                 return;
             }
 
@@ -380,7 +380,7 @@ namespace SeniorCitizenCenterMod {
                 waterConsumption = 0;
                 modifiedSewageAccumulation = 0;
                 garbageAccumulation = 0;
-                buildingData.m_problems = Notification.RemoveProblems(buildingData.m_problems, Notification.Problem.Electricity | Notification.Problem.Water | Notification.Problem.Sewage | Notification.Problem.Flood | Notification.Problem.Heating);
+                buildingData.m_problems = Notification.RemoveProblems(buildingData.m_problems, Notification.Problem1.Electricity | Notification.Problem1.Water | Notification.Problem1.Sewage | Notification.Problem1.Flood | Notification.Problem1.Heating);
                 buildingData.m_flags &= ~Building.Flags.Active;
             }
 
@@ -407,9 +407,9 @@ namespace SeniorCitizenCenterMod {
 
             // Calculate Happiness
             int happiness = Citizen.GetHappiness(health, wellbeing);
-            if ((buildingData.m_problems & Notification.Problem.MajorProblem) != Notification.Problem.None) {
+            if ((buildingData.m_problems & Notification.Problem1.MajorProblem) != Notification.Problem1.None) {
                 happiness -= happiness >> 1;
-            } else if (buildingData.m_problems != Notification.Problem.None) {
+            } else if (buildingData.m_problems != Notification.Problem1.None) {
                 happiness -= happiness >> 2;
             }
             Logger.logInfo(LOG_SIMULATION, "NursingHomeAi.SimulationStepActive -- happiness: {0}", happiness);
